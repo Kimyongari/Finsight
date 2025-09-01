@@ -1,0 +1,12 @@
+services:
+  weaviate:
+    image: cr.weaviate.io/semitechnologies/weaviate:1.32.4
+    ports:
+      - 8080:8080
+      - 50051:50051
+    restart: on-failure:0
+    environment:
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      ENABLE_MODULES: ''  # 벡터화 모듈 비활성화
+      AUTOSCHEMA_ENABLED: false
