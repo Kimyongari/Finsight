@@ -8,20 +8,21 @@ from pydantic import BaseModel
 from datetime import datetime
 
 import json
+from typing import Optional
+
 class VectorMeta(BaseModel):
     class Config:
         extra = 'allow'
 
-    text: str | None = None
-    n_char: int | None = None
-    n_word: int | None = None
-    i_page: int | None = None
-    i_chunk_on_page: int | None = None
-    n_chunk_of_page: int | None = None
-    i_chunk_on_doc: int | None = None
-    n_chunk_of_doc: int | None = None
-    n_page: int | None = None
-
+    text: Optional[str] = None
+    n_char: Optional[int] = None
+    n_word: Optional[int] = None
+    i_page: Optional[int] = None
+    i_chunk_on_page: Optional[int] = None
+    n_chunk_of_page: Optional[int] = None
+    i_chunk_on_doc: Optional[int] = None
+    n_chunk_of_doc: Optional[int] = None
+    n_page: Optional[int] = None
 
 class DocumentProcessor:
     def __init__(self):
