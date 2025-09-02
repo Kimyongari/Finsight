@@ -56,11 +56,30 @@ class ReportService:
 
         # 2. 최신 뉴스 검색 및 요약
         news_search_query = f"{stock_name} 최신 뉴스"
-        web_search_tool = WebSearchTool(query=news_search_query, num_results=3)
+        web_search_tool = WebSearchTool(query=news_search_query, num_results=5)
         scraped_news = await web_search_tool.search_and_scrape()
         
         today = datetime.now().strftime("%Y-%m-%d")
-        news_summary_prompt = f"주어진 뉴스 기사 목록을 바탕으로, 기업의 최신 주요 뉴스 3개를 선정하고 각각의 핵심 내용을 2문장으로 요약해주세요. 각 뉴스 요약 앞에는 발표 날짜와 제목을 명시하고, Markdown 리스트 형식으로 작성해주세요. 오늘 날짜: {today}"
+        news_summary_prompt = f"""
+        당신은 금융 뉴스 큐레이터입니다. 다음은 {company_name}에 대한 최신 뉴스 기사 목록입니다.
+        
+        **지시사항:**
+        1.  오직 `{company_name}`에 대한 뉴스만 선택하세요.
+        2.  선택한 뉴스 중에서 **서로 주제가 다른 주요 뉴스 4개**를 고르세요. (예: 신제품 출시, 실적 발표, 공장 증설 등)
+        3.  각 뉴스의 제목은 `###` 마크다운 제목 형식으로 작성하고, 발표 날짜를 괄호 안에 포함하세요. (예: `### 삼성전자, 차세대 AI 칩 공개 (2025-09-03)`) 
+        4.  각 뉴스 내용은 3문장으로 핵심 내용만 요약하여 제목 아래에 작성하세요.
+        5.  서론이나 결론 없이, 바로 첫 번째 뉴스 요약부터 시작하세요.
+
+        예시:
+        ### 뉴스1 제목 (날짜)
+        뉴스1 내용 요약
+
+        ### 뉴스2 제목 (날짜)
+        뉴스2 내용 요약
+
+        ### 뉴스3 제목 (날짜)
+        뉴스3 내용 요약
+        """
         news_context = "\n\n".join([f"제목: {n['title']}\n내용: {n['content']}" for n in scraped_news])
         recent_news_summary = await self.llm.acall(news_summary_prompt, f"뉴스 기사 목록:\n{news_context}")
 
@@ -71,8 +90,23 @@ class ReportService:
         company_info_for_prompt = self._format_company_info(company_info_dict)
 
         conclusion_prompt = """
-        당신은 투자 전문가입니다. 주어진 기업의 개요, 재무 상황, 최신 뉴스를 종합하여 이 기업에 대한 최종 결론과 향후 전망을 작성해주세요.
-        '결론:'과 '전망:'으로 나누어 각각 2~3문장으로 요약하고, 전문가적인 견해를 담아 작성해주세요.
+        당신은 투자 전문가입니다. 주어진 기업 정보를 바탕으로, 이 기업에 대한 최종 결론과 향후 전망을 작성해주세요.
+        
+        **출력 형식 지시사항:**
+        - 오직 `### 결론`과 `### 전망` 두 개의 제목만 사용하세요.
+        - 각 제목 아래에는 `-`를 이용한 리스트 형식으로 2~4개의 핵심 사항을 요약하여 작성하세요.
+        - 다른 제목, 소제목, 서론, 맺음말 등은 절대 추가하지 마세요.
+        
+        예시:
+        ### 결론
+        - 결론 핵심 사항 1
+        - 결론 핵심 사항 2
+        - 결론 핵심 사항 3
+        
+        ### 전망
+        - 전망 핵심 사항 1
+        - 전망 핵심 사항 2
+        - 전망 핵심 사항 3
         """
         conclusion_context = f"기업 개요:\n{company_info_for_prompt}\n\n재무 상황:\n{financial_statement}\n\n최근 주요 소식:\n{recent_news_summary}"
         conclusion_and_outlook = await self.llm.acall(conclusion_prompt, conclusion_context)
