@@ -8,8 +8,8 @@ load_dotenv()
 
 class NaverCloudEmbeddings:
     def __init__(self, host = None, api_key = None, request_id = None):
-        self._host = os.getenv('navercloud_host') if not host else host
-        self._api_key = os.getenv('navercloud_api_key') if not api_key else api_key
+        self._host = os.getenv('NAVERCLOUD_HOST') if not host else host
+        self._api_key = os.getenv('NAVER_CLOVA_API_KEY') if not api_key else api_key
         self._request_id = request_id
 
     def _send_request(self, completion_request):
@@ -33,4 +33,4 @@ class NaverCloudEmbeddings:
         if res['status']['code'] == '20000':
             return res['result']
         else:
-            return {'err_msg': 'Error ' + f'{res['status']['code']}'}
+            return {'err_msg': 'Error ' + f"{res['status']['code']}"}
