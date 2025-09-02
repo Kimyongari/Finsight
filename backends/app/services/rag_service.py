@@ -1,12 +1,26 @@
 from ..core.VDB.weaviateVDB import VectorDB
+from ..core.Preprocessor.preprocessor import DocumentProcessor
+from weaviate.classes.config import Property, DataType
+from ..core.llm.llm import Midm
+
 
 class RagService:
     def __init__(self, url=None, http_port=None, grpc_port=None):
         self.vdb = VectorDB(url=url, http_port=http_port, grpc_port=grpc_port)
+        if 'LegalDB' in self.vdb.show_collection():
+            self.vdb.set_collection('LegalDB')
+        else:
+            result = self.initialize()
+            if result['success']:
+                print('VectorDB initialized and LegalDB collection created.')
+            else:
+                print('Failed to initialize VectorDB:', result['err_msg'])
 
-    def Retriever(self, query:str) -> dict:
+        self.llm = Midm()
+
+    def Retriever(self, query:str, topk=4) -> dict:
         try:
-            retrieved_documents = self.vdb.query_hybrid(query = query, topk = 4)
+            retrieved_documents = self.vdb.query_hybrid(query = query, topk = topk)
             return {'success' : True, 'data' : retrieved_documents}
         except Exception as e:
             return {'success' : False, 'err_msg' : str(e)}
@@ -19,4 +33,84 @@ class RagService:
             self.vdb.set_collection(name)
             return {'success': True}
         except Exception as e:
+            return {'success' : False, 'err_msg' : str(e)}
+
+    def generate_answer(self, query:str) -> dict:
+        result = self.Retriever(query = query, topk = 4)
+        if result['success']:
+            retrieved_documents = result['data']
+            context = "\n\n".join([doc['text'] for doc in retrieved_documents])
+            self.context = context
+            system_prompt = f"""
+당신은 "전자금융감독규정"에 대한 내용을 설명하고 안내하는 전문 Assistant입니다.
+
+- 사용자의 질문에 대해 반드시 [참고자료]의 내용만을 바탕으로 대답하세요.
+- 문서에 명시되지 않은 질문에는 "문서에 명시되어 있지 않습니다."라고 답변하세요.
+- 답변 마지막 줄에 출처를 아래 형식으로 명확히 표기하세요.
+
+### 출력 형식 ###
+답변:
+질문에 대한 간결하고 명확한 한국어 답변
+
+출처: 「전자금융감독규정」 제(장 번호)장 (절 제목) 제(조 번호)조
+
+※ 문서에 장 또는 절이 명시되지 않은 경우 생략 가능합니다. 예:
+출처: 「전자금융감독규정」 제5조
+
+### 참고자료 ###
+{context}
+"""
+            self.test1 = system_prompt
+            
+            question = f"""
+질문: {query}
+답변: """
+            self.test2 = question
+            answer = self.llm.call(system_prompt = system_prompt,user_input= question)
+            if answer:
+                return {'success' : True, 'data' : answer}
+            else:
+                return {'success' : False, 'err_msg' : 'LLM 응답 생성 실패'}
+
+    def initialize(self):
+        try:
+            paths = ['./backends/app/core/pdfs/전자금융감독규정(금융위원회고시)(제2025-4호)(20250205).pdf',
+                     './backends/app/core/pdfs/전자금융감독규정시행세칙(금융감독원세칙)(20250205).pdf',
+                     './backends/app/core/pdfs/전자금융거래법 시행령(대통령령)(제35038호)(20241227).pdf']
+            
+            self.vdb.reset()
+            processor = DocumentProcessor()
+            all_chunks = []
+            for path in paths:
+                chunks = processor.preprocess(file_path = path)
+                all_chunks += chunks
+
+            properties=[
+                Property(name="text", data_type=DataType.TEXT),
+                Property(name="n_char", data_type=DataType.INT),
+                Property(name="n_word", data_type=DataType.INT),
+                Property(name="i_page", data_type=DataType.INT),
+                Property(name="i_chunk_on_page", data_type=DataType.INT),
+                Property(name="n_chunk_of_page", data_type=DataType.INT),
+                Property(name="i_chunk_on_doc", data_type=DataType.INT),
+                Property(name="n_chunk_of_doc", data_type=DataType.INT),
+                Property(name="n_page", data_type=DataType.INT),
+            ]
+            self.vdb.create_collection(name = 'LegalDB', properties=properties)
+            self.vdb.set_collection(name = 'LegalDB')
+            self.vdb.create_collection(name = 'LegalDB', properties=properties)
+            objects = [{'text' : chunk.text,
+                        'n_char' : chunk.n_char,
+                        'n_word' : chunk.n_word,
+                        'i_page' : chunk.i_page,
+                        'i_chunk_on_page' : chunk.i_chunk_on_page,
+                        'n_chunk_of_page' : chunk.n_chunk_of_page,
+                        'i_chunk_on_doc' : chunk.i_chunk_on_doc,
+                        'n_chunk_of_doc' : chunk.n_chunk_of_doc,
+                        'n_page' : chunk.n_page} for chunk in all_chunks]
+            self.vdb.add_objects(objects = objects)
+            return {'success' : True}
+        
+        except Exception as e:
+            print('Error during initialization:', str(e))
             return {'success' : False, 'err_msg' : str(e)}
