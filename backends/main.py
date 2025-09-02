@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import rag_router, financial_router, web_agent_router
+from app.routers import rag_router, financial_router, web_agent_router, report_router
 import uvicorn
 
 app = FastAPI(
@@ -12,6 +12,7 @@ app = FastAPI(
 app.include_router(rag_router.router, prefix="/rag", tags=["RAG Service"])
 app.include_router(financial_router.router, prefix="/financial", tags=["Financial Service"])
 app.include_router(web_agent_router.router, prefix="/web-agent", tags=["Web Agent Service"])
+app.include_router(report_router.router, prefix="/report", tags=["Report Generation Service"])
 
 
 @app.get("/", tags=["Root"])

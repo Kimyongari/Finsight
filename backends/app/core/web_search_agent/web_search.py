@@ -24,6 +24,7 @@ class WebSearchTool:
             "q": self.query,
             "api_key": self.api_key,
             "num": num_to_fetch,
+            "tbm": "nws",  # 뉴스 검색
         }
         try:
             async with httpx.AsyncClient() as client:
