@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import requests
 from bs4 import BeautifulSoup, Tag
 import pandas as pd
-from llm.llm import Midm
+from ..llm.llm import Midm
 
 load_dotenv()
 
@@ -143,11 +143,3 @@ class financial_statements_extractor:
         statement_url = self.get_statemnets_url(idx = statement_idx, rcept_no = recent_rcept_no)
         financial_statement = self._extract_statements(url = statement_url)
         return financial_statement
-
-
-
-        
-        
-
-    
-
