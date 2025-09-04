@@ -21,11 +21,11 @@ class WebSearchTool:
             print("[오류] SERPAPI_API_KEY가 .env 파일에 설정되지 않았습니다.")
             raise ValueError("SERPAPI_API_KEY가 .env 파일에 설정되지 않았습니다.")
         params = {
-            "engine": "google",
+            "engine": "naver",
+            "where": "news", # 검색 대상: 네이버 뉴스
             "q": self.query,
             "api_key": self.api_key,
             "num": num_to_fetch,
-            "tbm": "nws",  # 뉴스 검색
         }
         try:
             async with httpx.AsyncClient() as client:
@@ -66,7 +66,7 @@ class WebSearchTool:
         if not search_results:
             return []
         
-        tasks = [self._scrape_page(r.get("link", "")) for r in search_results]
+        tasks = [self._scrape_page(r.get("naver_url") or r.get("link", "")) for r in search_results]
         scraped_contents = await asyncio.gather(*tasks)
 
         documents = []
@@ -75,7 +75,7 @@ class WebSearchTool:
                 documents.append(
                     {
                         "title": r.get("title", ""),
-                        "link": r.get("link", ""),
+                        "link": r.get("naver_url") or r.get("link", ""),
                         "snippet": r.get("snippet", ""),
                         "content": c,
                     }
