@@ -12,6 +12,28 @@ class DartExtractor:
             raise ValueError("OPENDART_API_KEY가 .env 파일에 설정되지 않았습니다.")
         dart.set_api_key(api_key=self.api_key)
 
+    def get_corp_code_by_stock_code(self, stock_code: str) -> str | None:
+        """
+        종목 코드를 사용하여 DART에서 기업 코드를 가져옵니다.
+        """
+        try:
+            print(f"\n[DEBUG] Inside get_corp_code_by_stock_code")
+            print(f"[DEBUG] Attempting to get corp_list for stock_code: {stock_code}")
+            corp_list = dart.get_corp_list()
+            company = corp_list.find_by_stock_code(stock_code)
+            
+            if company:
+                print(f"[DEBUG] Company found: {company.corp_name}. Corp code: {company.corp_code}")
+                return company.corp_code
+            else:
+                print(f"[DEBUG] Company not found for stock_code: {stock_code}")
+                return None
+        except Exception as e:
+            print(f"\n[DEBUG] Exception in get_corp_code_by_stock_code: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
     def get_company_info(self, corp_code: str) -> dict:
         """
         기업 코드를 사용하여 DART에서 기업 개황 정보를 가져옵니다.
