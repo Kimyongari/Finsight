@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2017", // ES2015 이상으로 설정
+    "module": "ESNext",
+    "moduleResolution": "bundler", // 'node' 대신 bundler 권장 (vite 환경에 맞춤)
+    "jsx": "react-jsx", // React 17+ 방식
+    "esModuleInterop": true, // default import 허용
+    "allowSyntheticDefaultImports": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true
+  }
+}

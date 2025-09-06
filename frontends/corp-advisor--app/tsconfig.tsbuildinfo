@@ -1,0 +1,1 @@
+{"root":["./vite.config.ts","./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/screens/chatbotscreen.tsx","./src/screens/homescreen.tsx","./src/screens/reportscreen.tsx"],"version":"5.8.3"}
