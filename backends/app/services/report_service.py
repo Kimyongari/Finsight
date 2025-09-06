@@ -67,7 +67,7 @@ class ReportService:
         1.  오직 `{company_name}`에 대한 뉴스만 선택하세요.
         2.  최신 뉴스를 선택하세요. 오늘 날짜: {today}
         3.  선택한 뉴스 중에서 **서로 주제가 다른 주요 뉴스 4개**를 고르세요. (예: 신제품 출시, 실적 발표, 공장 증설 등)
-        4.  각 뉴스의 제목은 `###` 마크다운 제목 형식으로 작성하고, 해당 뉴스의 URL을 [] 안에, 작성일을 () 안에 포함하세요. (예: `### [삼성전자, 태국 방콕에 AI 기반 'B2B 설루션 체험공간' 열어](https://www.yna.co.kr/view/AKR20250903027100003?input=1195m) (2025-09-03)`) 
+        4.  각 뉴스의 제목은 `###` 마크다운 제목 형식으로 작성하고, **제공된** 해당 뉴스의 URL을 [] 안에, 작성일을 () 안에 포함하세요. (예: `### [뉴스 제목](제공된 URL) (날짜)`)
         5.  각 뉴스 내용은 5문장으로 핵심 내용만 요약하여 제목 아래에 작성하세요.
         6.  서론이나 결론 없이, 바로 첫 번째 뉴스 요약부터 시작하세요.
 
@@ -78,7 +78,7 @@ class ReportService:
         ### [뉴스2 제목](뉴스2 URL) (날짜)
         뉴스2 내용 요약
         """
-        news_context = "\n\n".join([f"제목: {n['title']}\n내용: {n['content']}" for n in scraped_news])
+        news_context = "\n\n".join([f"제목: {n['title']}\nURL: {n['link']}\n내용: {n['content']}" for n in scraped_news])
         recent_news_summary = await self.llm.acall(news_summary_prompt, f"뉴스 기사 목록:\n{news_context}")
 
         # 3. 재무제표 정보
