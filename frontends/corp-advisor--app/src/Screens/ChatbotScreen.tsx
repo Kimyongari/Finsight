@@ -6,29 +6,12 @@ import remarkGfm from "remark-gfm";
 // 메시지 타입 정의
 type Message = {
   id: number;
-  type: 'question' | 'answer';
+  type: 'question' | 'answer' | 'loading';
   text: string;
   isStreaming?: boolean;
 };
 
 const initialMessages: Message[] = [];
-
-// 스트리밍으로 보여줄 가짜 답변 데이터
-const fakeGeminiResponse = `
-# 금융 자문 예시 답변 금융 자문 예시 답변 금융 자문 예시 답변 금융 자문 예시 답변
-
-
-
-
-### 금융 자문 챗봇이 제공하는 예시 답변입니다.
-
-* **항목1:** 예시 내용 1
-* **항목2:** 예시 내용 2
-
-1. 결론:** 금융 시장 분석과 투자 전략이 포함됩니다.
-
-- [참고 링크](https://www.naver.com)
-`;
 
 function Chatbot() {
   const getDeviceType = () => {
@@ -39,7 +22,9 @@ function Chatbot() {
   };
 
   const [deviceType, setDeviceType] = useState(getDeviceType());
-
+  const [typingTextMap, setTypingTextMap] = useState<{ [id: number]: string }>({});
+  const [isLoading, setIsLoading] = useState(false);
+  
   useEffect(() => {
     const handleResize = () => setDeviceType(getDeviceType());
     window.addEventListener('resize', handleResize);
@@ -67,46 +52,73 @@ function Chatbot() {
     }
   }, [inputValue]);
 
-  // 마지막 메시지
-  const lastMessage = messages[messages.length - 1];
 
-  // --- 타자 치기 효과 적용 ---
-  useEffect(() => {
-    if (lastMessage?.type === 'answer' && lastMessage.isStreaming) {
-      let charIndex = 0;
-      const intervalId = setInterval(() => {
-        if (charIndex < fakeGeminiResponse.length) {
-          const nextChar = fakeGeminiResponse.charAt(charIndex);
-          setMessages(prev =>
-            prev.map(msg =>
-              msg.id === lastMessage.id ? { ...msg, text: msg.text + nextChar } : msg
-            )
-          );
-          charIndex++;
-        } else {
-          clearInterval(intervalId);
-          setMessages(prev =>
-            prev.map(msg =>
-              msg.id === lastMessage.id ? { ...msg, isStreaming: false } : msg
-            )
-          );
-        }
-      }, 25); // 타자 속도
+  const handleSubmit = async () => {
+    if (!inputValue.trim()) return;
 
-      return () => clearInterval(intervalId);
-    }
-  }, [lastMessage?.id, lastMessage?.isStreaming]);
+    const newQuestion: Message = { id: Date.now(), type: 'question', text: inputValue };
 
-  const handleSubmit = () => {
-    if (inputValue.trim()) {
-      const newQuestion: Message = { id: Date.now(), type: "question", text: inputValue };
-      const newAnswerPlaceholder: Message = { id: Date.now() + 1, type: "answer", text: "", isStreaming: true };
-      
-      setMessages(prev => [...prev, newQuestion, newAnswerPlaceholder]);
-      setInputValue("");
-      if (textareaRef.current) textareaRef.current.style.height = "auto";
-    }
+    const loadingAnswerId = Date.now() + 1;  
+    const loadingAnswer: Message = { id: loadingAnswerId, type: 'loading', text: '답변을 생각 중입니다. 조금만 기다려주세요.', isStreaming: true };
+
+    setMessages(prev => [...prev, newQuestion, loadingAnswer]); // 질문과 빈 답변 메시지를 추가
+  
+    setInputValue('');
+    setIsLoading(true); // 로딩 시작
+    try {
+      const response = await fetch('http://127.0.0.1:8000/rag/query', {
+        method: "POST",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: newQuestion.text })
+      });
+      const data = await response.json();
+      
+      setTypingTextMap(prev => ({ ...prev, [loadingAnswerId]: data.answer })); // 전체 답변 텍스트를 임시 상태에 저장, 타이핑 효과
+
+    } catch (err) {
+      console.error("답변을 가져오는 데 실패했습니다:", err);
+      setMessages(prev => prev.map(msg =>
+        msg.id === loadingAnswerId
+          ? { ...msg, text: "답변을 가져오는 데 실패했습니다.", isStreaming: false }
+          : msg
+      ));
+    }
   };
+// --- 타자 치기 효과 적용 ---
+useEffect(() => {
+Object.entries(typingTextMap).forEach(([idStr, fullText]) => {
+    const id = Number(idStr);
+    let currentText = "";
+    let charIndex = 0;
+    const intervalId = setInterval(() => {
+      if (charIndex < fullText.length) {
+        currentText += fullText.charAt(charIndex);
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === id ? { ...msg, text: currentText } : msg
+          )
+        );
+        charIndex++;
+      } else {
+        clearInterval(intervalId);
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === id ? { ...msg, isStreaming: false, type: 'answer' } : msg
+          )
+        );
+        // 타이핑이 끝나면 isStreaming을 false로 변경
+        setIsLoading(false);
+
+        setTypingTextMap(prev => {
+          const { [id]: _, ...rest } = prev;
+          return rest;
+        });
+      }
+    }, 15);
+
+    return () => clearInterval(intervalId);
+  });
+}, [typingTextMap]); // typingText 상태가 변경될 때만 이펙트 실행
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -129,14 +141,16 @@ function Chatbot() {
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={hasMessages ? "추가 질문을 입력하세요." : "금융과 관련해 질문해주세요."}
+          placeholder={isLoading ? "답변 생성 중입니다." : hasMessages ? "추가 질문을 입력하세요." : "금융과 관련해 질문해주세요."}
+          disabled={isLoading} // 로딩 중 비활성화
           className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none overflow-y-hidden"
           rows={1}
         />
         <button
           type="button"
           onClick={handleSubmit}
-          className="px-5 py-3 bg-indigo-500 text-white font-bold rounded-lg hover:bg-indigo-600 transform transition-transform duration-200 hover:scale-105 active:scale-95 self-end"
+          className={`px-5 py-3 text-white font-bold rounded-lg  ${isLoading ? "bg-gray-700" : "bg-indigo-500 hover:bg-indigo-600 transform transition-transform duration-200 hover:scale-105 active:scale-95"} self-end`}
+          disabled={isLoading} // 로딩 중 비활성화
         >
           ⬆
         </button>
@@ -158,7 +172,7 @@ function Chatbot() {
                   const isQuestion = msg.type === "question";
                   return (
                     <div key={msg.id} className={`flex w-full ${isQuestion ? "justify-end" : ""}`}>
-                      <div className={`rounded-2xl break-words ${isQuestion ? "p-4 text-justify max-w-[80%] md:max-w-[70%] bg-indigo-50 shadow-sm text-gray-800 rounded-br-none" : "w-full"}`}>
+                      <div className={`rounded-2xl break-words p-4 text-justify shadow-sm ${isQuestion ? "text-gray-800 max-w-[80%] md:max-w-[70%] bg-indigo-50 rounded-br-none" : "max-w-[90%] md:max-w-[80%] border-gray-100 text-gray-800 border border-solid rounded-bl-none"}`}>
                         {isQuestion ? (
                           msg.text
                         ) : (

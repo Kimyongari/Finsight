@@ -1,15 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from "remark-gfm";
+import { useChat } from '../ChatContext.tsx';
 
 type Message = {
   id: number;
   type: 'question' | 'answer';
   text: string;
-  isStreaming?: boolean;
 };
-
-const initialMessages: Message[] = [];
 
 function Chatbot() {
   const getDeviceType = () => {
@@ -20,6 +18,9 @@ function Chatbot() {
   };
 
   const [deviceType, setDeviceType] = useState(getDeviceType());
+  const { messages, setMessages } = useChat();
+
+  const [inputValue, setInputValue] = useState("");
 
   useEffect(() => {
     const handleResize = () => setDeviceType(getDeviceType());
@@ -30,8 +31,7 @@ function Chatbot() {
   const inputContainerClass = deviceType === 'mobile' ? "w-full" : "w-2/3 mx-auto";
   const messageListClass = deviceType === 'mobile' ? "p-4" : "w-1/2 mx-auto p-4";
 
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
-  const [inputValue, setInputValue] = useState("");
+
   const chatEndRef = useRef<null | HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -42,12 +42,16 @@ function Chatbot() {
     }
   }, [inputValue]);
 
+  useEffect(() => {
+    localStorage.setItem("chatMessages", JSON.stringify(messages));
+  }, [messages]);
+
   const handleSubmit = async () => {
     if (!inputValue.trim()) return;
 
     // 로딩 중 메시지
     const loadingAnswerId = Date.now() + 1;
-    const loadingAnswer: Message = { id: loadingAnswerId, type: 'answer', text: "답변 생성 중...", isStreaming: true };
+    const loadingAnswer: Message = { id: loadingAnswerId, type: 'answer', text: "답변을 생성 중입니다. 조금만 기다려주세요."};
 
     // 로딩 메시지만 상태에 추가
     setMessages(prev => [...prev, loadingAnswer]);
@@ -55,7 +59,7 @@ function Chatbot() {
 
     try {
       // 서버 요청
-      const response = await fetch(`http://localhost:8000/report/${inputValue}`, {
+      const response = await fetch(`http://127.0.0.1:8000/report/${inputValue}`, {
         method: "GET"
       });
 
@@ -63,13 +67,12 @@ function Chatbot() {
         throw new Error('네트워크 응답이 실패했습니다.');
       }
 
-      const data = await response.json();
-      console.log(data);
+      const data = await response.text();
 
       // 로딩 메시지를 실제 답변으로 교체
       setMessages(prev => prev.map(msg =>
         msg.id === loadingAnswerId
-          ? { ...msg, text: data.answer, isStreaming: false }
+          ? { ...msg, text: data}
           : msg
       ));
 
@@ -79,15 +82,21 @@ function Chatbot() {
       // 에러 발생 시 로딩 메시지를 실패 메시지로 업데이트
       setMessages(prev => prev.map(msg =>
         msg.id === loadingAnswerId
-          ? { ...msg, text: "답변을 가져오는 데 실패했습니다.", isStreaming: false }
+          ? { ...msg, text: "답변을 가져오는 데 실패했습니다. 기업 코드를 올바르게 작성했는지 확인해주세요."}
           : msg
       ));
     }
   };
-
-  const handleNewReport = () => {
-    setMessages([]);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      handleSubmit();
+    }
   };
+  const handleNewReport = () => {
+  setMessages([]);
+  localStorage.removeItem("chatMessages"); // localStorage도 초기화
+};
 
   const hasMessages = messages.length > 0;
 
@@ -98,7 +107,8 @@ function Chatbot() {
           ref={textareaRef}
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder={hasMessages ? "추가 질문을 입력하세요." : "기업명을 입력해주세요."}
+          onKeyDown={handleKeyDown}
+          placeholder={hasMessages ? "추가 질문을 입력하세요." : "기업 코드를 입력해주세요."}
           className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none overflow-y-hidden"
           rows={1}
         />
@@ -146,13 +156,6 @@ function Chatbot() {
                     </div>
                   );
                 })}
-
-                {/* 로딩 중 표시 */}
-                {messages.length > 0 && messages[messages.length - 1].isStreaming && (
-                  <div className="text-center text-gray-400 my-2">
-                    답변을 생성 중입니다…
-                  </div>
-                )}
               </div>
               <div ref={chatEndRef} />
             </div>
