@@ -82,8 +82,14 @@ class ReportService:
         - **핵심 요약:** (뉴스 내용 요약)
         - **영향 분석:** (단기/장기적 영향 및 투자 관점에서의 의미 분석)
         """
-        news_context = "\n\n".join([f"제목: {n['title']}\nURL: {n['link']}\n내용: {n['content']}" for n in scraped_news])
-        recent_news_summary = await self.llm.acall(news_summary_prompt, f"뉴스 기사 목록:\n{news_context}")
+        news_context = ''
+        for i in scraped_news:
+            context ="\n\n".join(f"제목: {i['title']}\nURL: {i['link']}\n내용: {i['content']}")
+            if not len(news_context + context + "\n\n") > 12000:
+                news_context += context + "\n\n"
+            else:
+                break
+        recent_news_summary = await self.llm.acall(system_prompt=news_summary_prompt, user_input=f"뉴스 기사 목록:\n{news_context}")
 
         # 3. 재무제표 정보
         financial_statement = self.financial_extractor.extract_statement(corp_code=corp_code)

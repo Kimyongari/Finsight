@@ -1,4 +1,6 @@
 import weaviate
+import os
+from urllib.parse import urlparse
 from weaviate.classes.init import AdditionalConfig, Timeout
 from weaviate.classes.config import Property, DataType
 from .navercloud_embedding import NaverCloudEmbeddings
@@ -11,7 +13,28 @@ class VectorDB:
         self.client = None
         self.collection = None
         try:
-            if url and http_port and grpc_port:
+            weaviate_url = os.getenv("WEAVIATE_URL")
+            if weaviate_url:
+                parsed_url = urlparse(weaviate_url)
+                http_host = parsed_url.hostname
+                http_port = parsed_url.port
+                
+                # Assuming gRPC port is 50051 as per docker-compose
+                grpc_port = 50051 
+
+                self.client = weaviate.connect_to_custom(
+                    http_host=http_host,
+                    http_port=http_port,
+                    http_secure=False,
+                    grpc_host=http_host,
+                    grpc_port=grpc_port,
+                    grpc_secure=False,
+                    additional_config=AdditionalConfig(timeout=Timeout(init=30)) # Increase timeout
+                )
+                if self.client.is_ready():
+                    print(f'weaviate에 {weaviate_url}로 접속하였습니다.')
+            # This case is for external connection
+            elif url and http_port and grpc_port:
                 self.client = weaviate.connect_to_custom(
                                 http_host=url,
                                 http_port=http_port,
@@ -24,15 +47,17 @@ class VectorDB:
                     print('weaviate 외부 접속하였습니다.')
 
             else:
+                # Fallback to local if WEAVIATE_URL is not set
                 self.client  = weaviate.connect_to_local(
                                 port=8080,  # REST
                                 grpc_port=50051,  # gRPC
                                 additional_config=AdditionalConfig(timeout=Timeout(init=10))
                             )
-                if self.client and self.client.is_ready():
+                if self.client.is_ready():
                     print('weaviate 로컬 접속하였습니다.')
+
         except Exception as e:
-            print('weaviate 접속에 실패했습니다. 서버 혹은 접속정보를 확인해 주세요.')
+            print(f'weaviate 접속에 실패했습니다. 서버 혹은 접속정보를 확인해 주세요. 에러: {e}')
         self.embedding_model = NaverCloudEmbeddings()
         test = self.embedding_model.embed_query('안녕?')
         if 'err_msg' in test:

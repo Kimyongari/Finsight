@@ -6,6 +6,7 @@ import re
 import fitz
 from pydantic import BaseModel
 from datetime import datetime
+from ..llm.llm import Midm
 
 import json
 from typing import Optional
@@ -30,37 +31,13 @@ class DocumentProcessor:
         self.lagal_name = ''
 
     def name_finder(self, texts):
-        bearer_token = '9f3e1a32b2414ddaa46bb72f61860e47'
-        genos_url = 'https://genos.mnc.ai:3443'
-        serving_id = '43'
-
-        endpoint = f'{genos_url}/api/gateway/rep/serving/{serving_id}'
-        headers = dict(Authorization=f'Bearer {bearer_token}')
-        response = requests.get(endpoint + '/v1/models', headers = headers , timeout = 30)
-        model = response.json()['data'][0]['id']
-
-        payload = {
-            'model': model,
-            'messages' : [
-                {'role' : 'system', 'content' : '''당신은 법률 전문가입니다. 사용자가 건넨 문서를 읽고 법의 제목을 찾아 주세요.
+        model = Midm()
+        system_prompt = '''당신은 법률 전문가입니다. 사용자가 건넨 문서를 읽고 법의 제목을 찾아 주세요.
                 문서의 제목은 문서 안에서 찾으세요.
-                해설은 필요 없으며, 문서의 제목만 말해 주세요.'''},
-                {'role' : 'user', 'content' : f'문서 : {texts}\n\n제목 : '},
-            ]
-        }
-        # API 호출 코드...
-        response = requests.post(endpoint + '/v1/chat/completions', headers=headers, json=payload, timeout=90)
-        
-        # 응답 형식 확인 및 오류 처리 추가
-        if response.headers.get('Content-Type', '').startswith('application/json'):
-            try:
-                return json.loads(response.text)["choices"][0]["message"]["content"]
-            except (json.JSONDecodeError, KeyError) as e:
-                print(f"JSON 파싱 오류: {e}")
-                return ''
-        else:
-            print(f"예상치 못한 응답 형식: {response.headers.get('Content-Type')}")
-            return ''
+                해설은 필요 없으며, 문서의 제목만 말해 주세요.'''
+        user_input = f'문서 : {texts}\n\n제목 :'
+        response = model.call(system_prompt=system_prompt, user_input=user_input)
+        return response
         
     def load_documents(self,file_path):
         doc = fitz.open(file_path)

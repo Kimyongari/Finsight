@@ -10,3 +10,14 @@ services:
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
       ENABLE_MODULES: ''  # 벡터화 모듈 비활성화
       AUTOSCHEMA_ENABLED: false
+
+  backend:
+    build: ./backends
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backends:/app
+    depends_on:
+      - weaviate
+    env_file:
+      - ./backends/.env

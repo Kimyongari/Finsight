@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+weaviate-client
+openai
+langchain
+langchain-openai
+pydantic
+python-dotenv
+pymupdf
+beautifulsoup4
+requests
+numpy
+dart_fss
+OpenDartReader
+tabulate

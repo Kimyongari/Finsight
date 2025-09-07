@@ -12,7 +12,7 @@ class financial_statements_extractor:
     def __init__(self):
         self.dart = OpenDartReader(api_key = os.getenv('OPENDART_API_KEY'))
         self.midm = Midm()
-    def url2html(self, url: str) -> str| None:
+    def url2html(self, url: str) -> str:
         """
         URL을 입력받아 HTML 내용을 가져온 후 BeautifulSoup 객체로 변환합니다.
 
