@@ -23,7 +23,7 @@ class WebSearchTool:
         params = {
             "engine": "naver",
             "where": "news", # 검색 대상: 네이버 뉴스
-            "q": self.query,
+            "query": self.query,
             "api_key": self.api_key,
             "num": num_to_fetch,
         }
@@ -43,8 +43,11 @@ class WebSearchTool:
     async def _scrape_page(self, url: str) -> str:
         """주어진 URL의 웹 페이지를 스크래핑하여 본문 텍스트를 추출합니다."""
         try:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
             async with httpx.AsyncClient(follow_redirects=True) as client:
-                response = await client.get(url, timeout=15.0)
+                response = await client.get(url, headers=headers, timeout=15.0)
                 response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
             for script_or_style in soup(["script", "style"]):
@@ -66,7 +69,7 @@ class WebSearchTool:
         if not search_results:
             return []
         
-        tasks = [self._scrape_page(r.get("naver_url") or r.get("link", "")) for r in search_results]
+        tasks = [self._scrape_page(r.get("link") or r.get("naver_url", "")) for r in search_results]
         scraped_contents = await asyncio.gather(*tasks)
 
         documents = []
@@ -75,7 +78,7 @@ class WebSearchTool:
                 documents.append(
                     {
                         "title": r.get("title", ""),
-                        "link": r.get("naver_url") or r.get("link", ""),
+                        "link": r.get("link") or r.get("naver_url", ""),
                         "snippet": r.get("snippet", ""),
                         "content": c,
                     }

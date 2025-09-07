@@ -12,7 +12,7 @@ class DartExtractor:
             raise ValueError("OPENDART_API_KEY가 .env 파일에 설정되지 않았습니다.")
         dart.set_api_key(api_key=self.api_key)
 
-    def get_corp_code_by_stock_code(self, stock_code: str) -> str | None:
+    def get_corp_code_by_stock_code(self, stock_code: str) -> str:
         """
         종목 코드를 사용하여 DART에서 기업 코드를 가져옵니다.
         """
