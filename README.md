@@ -1,8 +1,8 @@
-# FinAgent: AI 금융 분석 어시스턴트
+# Finsight: AI 금융 분석 어시스턴트
 
 ## 1. 프로젝트 소개
 
-FinAgent는 포괄적인 금융 정보와 분석을 제공하기 위해 설계된 AI 기반 금융 어시스턴트입니다. 사용자의 질문에 통찰력 있는 답변을 제공하기 위해 다양한 데이터 소스와 AI 기술을 통합합니다.
+FinSight는 포괄적인 금융 정보와 분석을 제공하기 위해 설계된 AI 기반 금융 어시스턴트입니다. 사용자의 질문에 통찰력 있는 답변을 제공하기 위해 다양한 데이터 소스와 AI 기술을 통합합니다.
 
 주요 기능은 다음과 같습니다:
 - **기업 재무 분석**: DART(전자공시시스템) 데이터를 사용하여 기업의 재무제표를 추출하고 분석합니다.
@@ -12,12 +12,16 @@ FinAgent는 포괄적인 금융 정보와 분석을 제공하기 위해 설계�
 
 백엔드는 **FastAPI**로 구축되었으며, RAG 파이프라인의 효율적인 유사도 검색을 위해 **Weaviate**를 벡터 데이터베이스로 사용합니다.
 
+#### 시연 영상
+- [Report Agent](https://www.youtube.com/watch?v=xQm8__sc2js)
+- [RAG Agent](https://www.youtube.com/watch?v=BaZBrlYc3Uc)
+
 ## 2. 프로젝트 구조
 
 프로젝트는 백엔드와 프론트엔드 구조로 구성되어 있습니다. 핵심 로직은 `backends` 디렉토리에 있습니다.
 
 ```
-FinAgent/
+Finsight/
 ├───backends/
 │   ├───main.py                # FastAPI 애플리케이션 진입점
 │   ├───app/
@@ -72,8 +76,8 @@ RUNPOD_API_KEY
 
 1.  **Repository Clone**
     ```bash
-    git clone https://github.com/Kimyongari/FinAgent.git
-    cd FinAgent
+    git clone https://github.com/Kimyongari/Finsight.git
+    cd Finsight
     ```
 
 2.  **가상 환경 설정 및 의존성 설치**
