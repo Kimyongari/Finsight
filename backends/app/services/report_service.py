@@ -150,12 +150,12 @@ class ReportService:
 """
         return report.strip()
 
-    async def generate_report_by_stock_code(self, stock_code: str) -> str:
+    async def generate_report_by_corp_code(self, corp_code: str) -> str:
         """
         종목 코드를 기반으로 기업 분석 보고서를 생성합니다.
         """
-        corp_code = self.dart_extractor.get_corp_code_by_stock_code(stock_code)
+        corp_code = self.dart_extractor.validate_corp_code(corp_code)
         if not corp_code:
-            return f"# 오류: 종목 코드에 해당하는 기업을 찾을 수 없습니다 (stock_code: {stock_code})"
+            return f"# 오류: 종목 코드에 해당하는 기업을 찾을 수 없습니다 (corp_code: {corp_code})"
         
         return await self.generate_report(corp_code)

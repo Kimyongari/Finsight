@@ -4,3 +4,6 @@ class RAGResponse(BaseModel):
     answer: str
     success:bool
 
+class StatementResponse(BaseModel):
+    statement: str
+    success:bool
