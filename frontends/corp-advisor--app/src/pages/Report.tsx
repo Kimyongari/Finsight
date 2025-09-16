@@ -10,7 +10,13 @@ type Message = {
   text: string;
 };
 
-function Report() {
+interface ReportPageProps {
+  csvData: FinancialRecord[];
+  isLoading: boolean;
+  loadError: string | null;
+}
+
+function Report({ csvData, isLoading, loadError }: ReportPageProps) {
   const getDeviceType = () => {
     const width = window.innerWidth;
     if (width <= 768) return "mobile";
@@ -20,26 +26,22 @@ function Report() {
 
   const [deviceType, setDeviceType] = useState(getDeviceType());
 
-  // csv 읽어오기
-  const { data, loading, error } = useCsvData("csv/company_with_corp_code.csv");
-
-  console.log("Fetched CSV Data:", data);
   // 검색 및 필터링 상태
   const [filteredData, setFilteredData] = useState<FinancialRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
   // 원본 데이터 변경 시 필터링 데이터 업데이트
   useEffect(() => {
-    setFilteredData(data);
-  }, [data]);
+    setFilteredData(csvData);
+  }, [csvData]);
 
   // 검색어가 변경될 때마다 데이터를 필터링
   useEffect(() => {
     if (!searchTerm) {
-      setFilteredData(data); // 검색어가 없으면 전체 데이터 표시
+      setFilteredData(csvData); // 검색어가 없으면 전체 데이터 표시
     } else {
       const lowercasedFilter = searchTerm.toLowerCase();
-      const filtered = data.filter((item) =>
+      const filtered = csvData.filter((item) =>
         // 각 행의 모든 값을 소문자로 변환하여 검색어와 비교
         Object.values(item).some((value) =>
           String(value).toLowerCase().includes(lowercasedFilter)
@@ -47,7 +49,7 @@ function Report() {
       );
       setFilteredData(filtered);
     }
-  }, [searchTerm, data]);
+  }, [searchTerm, csvData]);
 
   const { messages, setMessages } = useChat();
   const [inputValue, setInputValue] = useState("");
@@ -198,8 +200,8 @@ function Report() {
           </header>
           <main className="w-full">
             <Table
-              loading={loading}
-              error={error}
+              loading={isLoading}
+              error={loadError}
               data={filteredData}
               searchTerm={searchTerm}
               onSearchChange={setSearchTerm}
