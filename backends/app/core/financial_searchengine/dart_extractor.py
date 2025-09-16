@@ -2,7 +2,8 @@
 import os
 import dart_fss as dart
 from dotenv import load_dotenv
-
+load_dotenv()
+ 
 class DartExtractor:
     def __init__(self):
         dotenv_path = os.path.join(os.path.dirname(__file__), '../../.env')
@@ -12,21 +13,22 @@ class DartExtractor:
             raise ValueError("OPENDART_API_KEY가 .env 파일에 설정되지 않았습니다.")
         dart.set_api_key(api_key=self.api_key)
 
-    def get_corp_code_by_stock_code(self, stock_code: str) -> str:
+# stock_code : 6자 / corp_code : 8자
+    def validate_corp_code(self, corp_code: str) -> str:
         """
         종목 코드를 사용하여 DART에서 기업 코드를 가져옵니다.
         """
         try:
             print(f"\n[DEBUG] Inside get_corp_code_by_stock_code")
-            print(f"[DEBUG] Attempting to get corp_list for stock_code: {stock_code}")
+            print(f"[DEBUG] Attempting to get corp_list for stock_code: {corp_code}")
             corp_list = dart.get_corp_list()
-            company = corp_list.find_by_stock_code(stock_code)
+            company = corp_list.find_by_corp_code(corp_code)
             
             if company:
                 print(f"[DEBUG] Company found: {company.corp_name}. Corp code: {company.corp_code}")
                 return company.corp_code
             else:
-                print(f"[DEBUG] Company not found for stock_code: {stock_code}")
+                print(f"[DEBUG] Company not found for stock_code: {corp_code}")
                 return None
         except Exception as e:
             print(f"\n[DEBUG] Exception in get_corp_code_by_stock_code: {e}")
