@@ -1,20 +1,20 @@
 import { useState, useEffect, useRef } from "react";
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useChat } from '../ChatContext.tsx';
-
+import { useChat } from "../ChatContext.tsx";
+import { ChatForm } from "../components/ChatForm.tsx";
 type Message = {
   id: number;
-  type: 'question' | 'answer';
+  type: "question" | "answer";
   text: string;
 };
 
 function Chatbot() {
   const getDeviceType = () => {
     const width = window.innerWidth;
-    if (width <= 768) return 'mobile';
-    if (width <= 1024) return 'tablet';
-    return 'desktop';
+    if (width <= 768) return "mobile";
+    if (width <= 1024) return "tablet";
+    return "desktop";
   };
 
   const [deviceType, setDeviceType] = useState(getDeviceType());
@@ -24,20 +24,21 @@ function Chatbot() {
 
   useEffect(() => {
     const handleResize = () => setDeviceType(getDeviceType());
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const inputContainerClass = deviceType === 'mobile' ? "w-full" : "w-2/3 mx-auto";
-  const messageListClass = deviceType === 'mobile' ? "p-4" : "w-1/2 mx-auto p-4";
-
+  const inputContainerClass =
+    deviceType === "mobile" ? "w-full" : "w-2/3 mx-auto";
+  const messageListClass =
+    deviceType === "mobile" ? "p-4" : "w-1/2 mx-auto p-4";
 
   const chatEndRef = useRef<null | HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [inputValue]);
@@ -51,40 +52,51 @@ function Chatbot() {
 
     // 로딩 중 메시지
     const loadingAnswerId = Date.now() + 1;
-    const loadingAnswer: Message = { id: loadingAnswerId, type: 'answer', text: "답변을 생성 중입니다. 조금만 기다려주세요."};
+    const loadingAnswer: Message = {
+      id: loadingAnswerId,
+      type: "answer",
+      text: "답변을 생성 중입니다. 조금만 기다려주세요.",
+    };
 
     // 로딩 메시지만 상태에 추가
-    setMessages(prev => [...prev, loadingAnswer]);
+    setMessages((prev) => [...prev, loadingAnswer]);
     setInputValue("");
 
     try {
       // 서버 요청
-      const response = await fetch(`http://127.0.0.1:8000/report/${inputValue}`, {
-        method: "GET"
-      });
+      const response = await fetch(
+        `http://127.0.0.1:8000/report/${inputValue}`,
+        {
+          method: "GET",
+        }
+      );
 
       if (!response.ok) {
-        throw new Error('네트워크 응답이 실패했습니다.');
+        throw new Error("네트워크 응답이 실패했습니다.");
       }
 
       const data = await response.text();
 
       // 로딩 메시지를 실제 답변으로 교체
-      setMessages(prev => prev.map(msg =>
-        msg.id === loadingAnswerId
-          ? { ...msg, text: data}
-          : msg
-      ));
-
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === loadingAnswerId ? { ...msg, text: data } : msg
+        )
+      );
     } catch (err) {
       console.error("답변을 가져오는 데 실패했습니다:", err);
 
       // 에러 발생 시 로딩 메시지를 실패 메시지로 업데이트
-      setMessages(prev => prev.map(msg =>
-        msg.id === loadingAnswerId
-          ? { ...msg, text: "답변을 가져오는 데 실패했습니다. 기업 코드를 올바르게 작성했는지 확인해주세요."}
-          : msg
-      ));
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === loadingAnswerId
+            ? {
+                ...msg,
+                text: "답변을 가져오는 데 실패했습니다. 기업 코드를 올바르게 작성했는지 확인해주세요.",
+              }
+            : msg
+        )
+      );
     }
   };
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -94,37 +106,11 @@ function Chatbot() {
     }
   };
   const handleNewReport = () => {
-  setMessages([]);
-  localStorage.removeItem("chatMessages"); // localStorage도 초기화
-};
+    setMessages([]);
+    localStorage.removeItem("chatMessages"); // localStorage도 초기화
+  };
 
   const hasMessages = messages.length > 0;
-
-  const ChatForm = (
-    <div className={inputContainerClass}>
-      <div className="flex gap-2 mb-2">
-        <textarea
-          ref={textareaRef}
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={hasMessages ? "추가 질문을 입력하세요." : "기업 코드를 입력해주세요."}
-          className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none overflow-y-hidden"
-          rows={1}
-        />
-        <button
-          type="button"
-          onClick={handleSubmit}
-          className="px-5 py-3 bg-indigo-500 text-white font-bold rounded-lg hover:bg-indigo-600 transform transition-transform duration-200 hover:scale-105 active:scale-95 self-end"
-        >
-          ⬆
-        </button>
-      </div>
-      <div className="text-center text-xs text-gray-400">
-        CorpAdvisor의 답변은 부정확할 수 있습니다. 중요한 정보는 다시 확인해주세요.
-      </div>
-    </div>
-  );
 
   return (
     <div className="w-full flex flex-col justify-center items-center h-screen bg-white font-sans">
@@ -138,7 +124,9 @@ function Chatbot() {
                   return (
                     <div
                       key={msg.id}
-                      className={`flex w-full mt-16${isQuestion ? " justify-end" : ""}`}
+                      className={`flex w-full mt-16${
+                        isQuestion ? " justify-end" : ""
+                      }`}
                     >
                       <div
                         className={`rounded-2xl break-words ${
@@ -173,12 +161,35 @@ function Chatbot() {
           </footer>
         </>
       ) : (
-        <div className={`${deviceType === 'mobile' ? "w-full" : deviceType === 'tablet' ? "w-3/4": "w-1/2"} flex flex-col justify-center items-center h-full gap-6 p-4`}>
+        <div
+          className={`${
+            deviceType === "mobile"
+              ? "w-full"
+              : deviceType === "tablet"
+              ? "w-3/4"
+              : "w-1/2"
+          } flex flex-col justify-center items-center h-full gap-6 p-4`}
+        >
           <header className="text-center">
-            <h1 className="text-4xl font-bold text-gray-800">기업 보고서 생성</h1>
+            <h1 className="text-4xl font-bold text-gray-800">
+              기업 보고서 생성
+            </h1>
             <p className="text-gray-500 mt-2">CorpAdvisor</p>
           </header>
-          <div className="w-full">{ChatForm}</div>
+          <div className="w-full">
+            <ChatForm
+              inputContainerClass={inputContainerClass}
+              textareaRef={textareaRef}
+              inputValue={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onClick={handleSubmit}
+              defaultPlaceholder="기업 코드를 입력해주세요."
+              afterSubmitPlaceholder="추가 질문을 입력하세요."
+              hasMessages={hasMessages}
+              isLoading={false}
+            />
+          </div>
         </div>
       )}
     </div>
