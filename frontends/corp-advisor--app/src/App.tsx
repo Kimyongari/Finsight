@@ -1,6 +1,6 @@
 import "./App.css";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { ChatProvider } from './ChatContext.tsx';
+import { ChatProvider } from "./ChatContext.tsx";
 
 import Home from "./pages/Home.tsx";
 import Report from "./pages/Report.tsx";

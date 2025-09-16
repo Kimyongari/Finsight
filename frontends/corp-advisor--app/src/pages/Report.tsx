@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Bubble } from "../components/Bubble.tsx";
 import { useChat } from "../ChatContext.tsx";
 import { ChatForm } from "../components/ChatForm.tsx";
+import { useCsvData, FinancialRecord } from "../hooks/useCsvData";
+import Table from "../components/Table.tsx";
 type Message = {
   id: number;
   type: "question" | "answer";
   text: string;
 };
 
-function Chatbot() {
+function Report() {
   const getDeviceType = () => {
     const width = window.innerWidth;
     if (width <= 768) return "mobile";
@@ -18,8 +19,37 @@ function Chatbot() {
   };
 
   const [deviceType, setDeviceType] = useState(getDeviceType());
-  const { messages, setMessages } = useChat();
 
+  // csv 읽어오기
+  const { data, loading, error } = useCsvData("csv/company_with_corp_code.csv");
+
+  console.log("Fetched CSV Data:", data);
+  // 검색 및 필터링 상태
+  const [filteredData, setFilteredData] = useState<FinancialRecord[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // 원본 데이터 변경 시 필터링 데이터 업데이트
+  useEffect(() => {
+    setFilteredData(data);
+  }, [data]);
+
+  // 검색어가 변경될 때마다 데이터를 필터링
+  useEffect(() => {
+    if (!searchTerm) {
+      setFilteredData(data); // 검색어가 없으면 전체 데이터 표시
+    } else {
+      const lowercasedFilter = searchTerm.toLowerCase();
+      const filtered = data.filter((item) =>
+        // 각 행의 모든 값을 소문자로 변환하여 검색어와 비교
+        Object.values(item).some((value) =>
+          String(value).toLowerCase().includes(lowercasedFilter)
+        )
+      );
+      setFilteredData(filtered);
+    }
+  }, [searchTerm, data]);
+
+  const { messages, setMessages } = useChat();
   const [inputValue, setInputValue] = useState("");
 
   useEffect(() => {
@@ -122,26 +152,16 @@ function Chatbot() {
                 {messages.map((msg) => {
                   const isQuestion = msg.type === "question";
                   return (
-                    <div
+                    <Bubble
                       key={msg.id}
-                      className={`flex w-full mt-16${
-                        isQuestion ? " justify-end" : ""
+                      isQuestion={isQuestion}
+                      msg={msg}
+                      answerClass={`rounded-2xl break-words ${
+                        isQuestion
+                          ? "p-4 text-justify max-w-[80%] md:max-w-[70%] bg-indigo-50 shadow-sm text-gray-800 rounded-br-none"
+                          : "w-full"
                       }`}
-                    >
-                      <div
-                        className={`rounded-2xl break-words ${
-                          isQuestion
-                            ? "p-4 text-justify max-w-[80%] md:max-w-[70%] bg-indigo-50 shadow-sm text-gray-800 rounded-br-none"
-                            : "w-full"
-                        }`}
-                      >
-                        <div className="prose max-w-none w-full">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {msg.text}
-                          </ReactMarkdown>
-                        </div>
-                      </div>
-                    </div>
+                    />
                   );
                 })}
               </div>
@@ -176,7 +196,14 @@ function Chatbot() {
             </h1>
             <p className="text-gray-500 mt-2">CorpAdvisor</p>
           </header>
-          <div className="w-full">
+          <main className="w-full">
+            <Table
+              loading={loading}
+              error={error}
+              data={filteredData}
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+            />
             <ChatForm
               inputContainerClass={inputContainerClass}
               textareaRef={textareaRef}
@@ -189,11 +216,11 @@ function Chatbot() {
               hasMessages={hasMessages}
               isLoading={false}
             />
-          </div>
+          </main>
         </div>
       )}
     </div>
   );
 }
 
-export default Chatbot;
+export default Report;

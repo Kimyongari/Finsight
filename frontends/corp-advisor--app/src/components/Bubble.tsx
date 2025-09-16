@@ -12,22 +12,25 @@ type Message = {
 
 type BubbleProps = {
   isQuestion: boolean;
+  answerClass?: string;
   msg: Message;
 };
 
-export function Bubble({ isQuestion, msg }: BubbleProps) {
+export function Bubble({
+  isQuestion,
+  answerClass = `rounded-2xl break-words p-4 text-justify shadow-sm ${
+    isQuestion
+      ? "text-gray-800 max-w-[80%] md:max-w-[70%] bg-indigo-50 rounded-br-none"
+      : "max-w-[90%] md:max-w-[80%] border-gray-100 text-gray-800 border border-solid rounded-bl-none"
+  }`,
+  msg,
+}: BubbleProps) {
   return (
     <div
       key={msg.id}
       className={`flex w-full ${isQuestion ? "justify-end" : ""}`}
     >
-      <div
-        className={`rounded-2xl break-words p-4 text-justify shadow-sm ${
-          isQuestion
-            ? "text-gray-800 max-w-[80%] md:max-w-[70%] bg-indigo-50 rounded-br-none"
-            : "max-w-[90%] md:max-w-[80%] border-gray-100 text-gray-800 border border-solid rounded-bl-none"
-        }`}
-      >
+      <div className={answerClass}>
         {isQuestion ? (
           msg.text
         ) : (
