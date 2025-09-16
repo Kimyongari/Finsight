@@ -150,6 +150,22 @@ function Chatbot() {
     setMessages([]);
   };
 
+  const renderChatForm = () => (
+    <ChatForm
+      inputContainerClass={inputContainerClass}
+      textareaRef={textareaRef}
+      inputValue={inputValue}
+      onChange={(e) => setInputValue(e.target.value)}
+      onKeyDown={handleKeyDown}
+      onClick={handleSubmit}
+      loadingPlaceholder="답변 생성 중입니다."
+      defaultPlaceholder="금융과 관련한 질문을 입력해주세요."
+      afterSubmitPlaceholder="추가 질문을 입력하세요."
+      hasMessages={hasMessages}
+      isLoading={isLoading}
+    />
+  );
+
   const hasMessages = messages.length > 0;
 
   return (
@@ -170,19 +186,7 @@ function Chatbot() {
             </div>
           </main>
           <footer className="w-full bg-white border-t border-gray-200 p-4 fixed bottom-0 left-0 right-0">
-            <ChatForm
-              inputContainerClass={inputContainerClass}
-              textareaRef={textareaRef}
-              inputValue={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onClick={handleSubmit}
-              loadingPlaceholder="답변 생성 중입니다."
-              defaultPlaceholder="금융과 관련한 질문을 입력해주세요."
-              afterSubmitPlaceholder="추가 질문을 입력하세요."
-              hasMessages={hasMessages}
-              isLoading={isLoading}
-            />
+            {renderChatForm()}
           </footer>
         </>
       ) : (
@@ -199,21 +203,7 @@ function Chatbot() {
             <h1 className="text-4xl font-bold text-gray-800">금융 자문 챗봇</h1>
             <p className="text-gray-500 mt-2">CorpAdvisor</p>
           </header>
-          <div className="w-full">
-            <ChatForm
-              inputContainerClass={inputContainerClass}
-              textareaRef={textareaRef}
-              inputValue={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onClick={handleSubmit}
-              loadingPlaceholder="답변 생성 중입니다."
-              defaultPlaceholder="금융과 관련한 질문을 입력해주세요."
-              afterSubmitPlaceholder="추가 질문을 입력하세요."
-              hasMessages={hasMessages}
-              isLoading={isLoading}
-            />
-          </div>
+          <div className="w-full">{renderChatForm()}</div>
         </div>
       )}
     </div>
