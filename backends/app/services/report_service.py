@@ -1,10 +1,12 @@
-
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.core.llm.llm import Midm
 from app.core.financial_searchengine.dart_extractor import DartExtractor
 from app.core.financial_searchengine.financial_statements_extractor import financial_statements_extractor
 from app.core.web_search_agent.web_search import WebSearchTool
+import plotly.graph_objects as go
+import plotly.io as pio
+from pykrx import stock
 import re
 import json
 
@@ -106,16 +108,53 @@ class ReportService:
         - **핵심 요약:** (여기에 핵심 내용 요약)
         - **영향 분석:** (여기에 영향 분석)
         
-        ---
         **출력 예시:**
-
         - **핵심 요약:** 삼성전자가 차세대 반도체 기술 개발에 성공하여, 향후 메모리 시장에서의 리더십을 더욱 공고히 할 것으로 보입니다.
         - **영향 분석:** 단기적으로는 주가에 긍정적 모멘텀으로 작용할 것이며, 장기적으로는 회사의 기술적 해자를 강화하고 경쟁사와의 격차를 벌리는 효과를 가져올 것입니다.
-        ---
         """
         
         response = await self.llm.acall(system_prompt=summary_prompt, user_input=f"기사 전문:\n{news_item['content']}")
         return response
+
+    async def _generate_stock_chart(self, stock_code: str, stock_name: str) -> str:
+        """
+        주가 비교 차트를 별도의 HTML 파일로 저장하고,
+        마크다운 보고서에 삽입할 링크를 반환합니다.
+        """
+        try:
+            # --- 기존 코드와 동일한 데이터 준비 과정 ---
+            today = datetime.now()
+            start_date = (today - timedelta(days=365)).strftime('%Y%m%d')
+            end_date = today.strftime('%Y%m%d')
+
+            df_stock = stock.get_market_ohlcv(start_date, end_date, stock_code)[['종가']].rename(columns={'종가': stock_name})
+            df_kospi = stock.get_index_ohlcv(start_date, end_date, "1001")[['종가']].rename(columns={'종가': 'KOSPI'})
+            df_kosdaq = stock.get_index_ohlcv(start_date, end_date, "2001")[['종가']].rename(columns={'종가': 'KOSDAQ'})
+            
+            df_merged = df_stock.join(df_kospi, how='inner').join(df_kosdaq, how='inner')
+            df_normalized = (df_merged / df_merged.iloc[0]) * 100
+            
+            # --- Plotly Figure 객체 생성 및 차트 그리기 ---
+            fig = go.Figure()
+
+            # 각 데이터(trace)를 차트에 추가
+            fig.add_trace(go.Scatter(x=df_normalized.index, y=df_normalized[stock_name], name=stock_name, mode='lines+markers', customdata=df_merged[stock_name], hovertemplate='<b>%{fullData.name}</b><br>날짜: %{x}<br>실제 값: %{customdata:,.0f}<extra></extra>'))
+            fig.add_trace(go.Scatter(x=df_normalized.index, y=df_normalized['KOSPI'], name='KOSPI', mode='lines+markers', customdata=df_merged['KOSPI'], hovertemplate='<b>%{fullData.name}</b><br>날짜: %{x}<br>실제 값: %{customdata:,.0f}<extra></extra>'))
+            fig.add_trace(go.Scatter(x=df_normalized.index, y=df_normalized['KOSDAQ'], name='KOSDAQ', mode='lines+markers', customdata=df_merged['KOSDAQ'], hovertemplate='<b>%{fullData.name}</b><br>날짜: %{x}<br>실제 값: %{customdata:,.0f}<extra></extra>'))
+
+            fig.update_layout(title=f"{stock_name} 주가와 주요 지수 비교 (최근 1년)", legend_title="범례")
+
+            # --- 차트를 HTML 파일로 저장 ---
+            chart_filename = f"{stock_name}_chart.html"
+            # `include_plotlyjs='cdn'` 옵션은 파일 용량을 줄여줍니다.
+            pio.write_html(fig, file=chart_filename, auto_open=False, include_plotlyjs='cdn')
+
+            # --- 마크다운에 삽입할 링크 반환 ---
+            return f"[{stock_name} 주가 비교 차트 보기]({chart_filename})"
+
+        except Exception as e:
+            print(f"주가 차트 생성 중 오류 발생: {e}")
+            return "<p>주가 비교 차트를 생성하는 데 실패했습니다.</p>"
 
     async def generate_report(self, corp_code: str) -> str:
         """
@@ -128,7 +167,11 @@ class ReportService:
         
         company_name = company_info_dict.get("corp_name", "알 수 없음")
         stock_name = company_info_dict.get("stock_name", company_name)
+        stock_code = company_info_dict.get("stock_code", "")
 
+        # 비동기 작업들 병렬 실행
+        stock_chart_task = self._generate_stock_chart(stock_code, stock_name)
+        
         # 2. 최신 뉴스 처리
         news_search_query = f"{stock_name} 관련 뉴스"
         web_search_tool = WebSearchTool(query=news_search_query, num_results=10, time_period_months=3)
@@ -137,26 +180,19 @@ class ReportService:
         if not scraped_news:
             recent_news_summary = "최신 뉴스를 찾을 수 없습니다."
         else:
-            # 2-1. LLM으로 전체 뉴스 카테고리 분류 및 관련성 필터링
             categorized_news = await self._categorize_news_list(company_name, scraped_news)
-
-            # 2-2. 관련 없는 뉴스 제거
             relevant_news = [news for news in categorized_news if news.get('category') != 'irrelevant']
 
-            # 2-3. Python 코드로 4개 뉴스 선택 (다양성 우선, 개수 보충)
             selected_articles = []
             used_categories = set()
             if relevant_news:
-                # 1단계: 다양성 우선 선택
                 for news_item in relevant_news:
                     category = news_item.get('category')
                     if category and category not in used_categories:
                         selected_articles.append(news_item)
                         used_categories.add(category)
                 
-                # 2단계: 개수 보충 (4개가 안될 경우)
                 if len(selected_articles) < 4:
-                    # 이미 선택된 기사의 링크를 추적하여 중복 방지
                     selected_links = {article['link'] for article in selected_articles}
                     for news_item in relevant_news:
                         if len(selected_articles) >= 4:
@@ -168,11 +204,9 @@ class ReportService:
             if not selected_articles:
                  recent_news_summary = "주요 뉴스를 선택하는 데 실패했습니다."
             else:
-                # 2-4. 선택된 뉴스 개별적으로 요약 및 분석 (병렬 처리)
                 analysis_tasks = [self._summarize_and_analyze_news(article) for article in selected_articles]
                 analyzed_results = await asyncio.gather(*analysis_tasks)
 
-                # 2-5. 최종 뉴스 섹션 조립
                 news_summary_parts = []
                 for news_item, analysis_result in zip(selected_articles, analyzed_results):
                     title = news_item.get("title", "제목 없음")
@@ -181,7 +215,6 @@ class ReportService:
                     category = news_item.get("category", "분류 안됨")
                     
                     header = f"#### [{title}]({link}) ({date})"
-                    # 줄바꿈을 \n\n에서 \n으로 수정
                     body = f"- **카테고리:** [{category}]\n{analysis_result}"
                     news_summary_parts.append(f"{header}\n{body}")
                 
@@ -192,7 +225,10 @@ class ReportService:
         # 3. 재무제표 정보
         financial_statement = self.financial_extractor.extract_statement(corp_code=corp_code)
 
-        # 4. LLM을 이용한 종합 결론 생성
+        # 4. 차트 생성 결과 기다리기
+        stock_chart_html = await stock_chart_task
+
+        # 5. LLM을 이용한 종합 결론 생성
         company_info_for_prompt = self._format_company_info(company_info_dict)
 
         conclusion_prompt = f'''
@@ -230,7 +266,7 @@ class ReportService:
         conclusion_and_outlook = await self.llm.acall(conclusion_prompt, conclusion_context)
 
 
-        # 5. 최종 마크다운 보고서 조립
+        # 6. 최종 마크다운 보고서 조립
         report = f'''
 # {company_name} 기업 분석 보고서
 
@@ -240,13 +276,32 @@ class ReportService:
 ## II. 재무 상황
 {financial_statement}
 
-## III. 최근 주요 소식
+## III. 핵심 투자지표 분석
+{stock_chart_html}
+
+## IV. 최근 주요 소식
 {recent_news_summary}
 
-## IV. 종합 결론 및 전망
+## V. 종합 결론 및 전망
 {conclusion_and_outlook}
 '''
         return report.strip()
+
+    async def generate_report_by_identifier(self, identifier: str) -> str:
+        """
+        종목 코드 또는 기업 코드를 기반으로 기업 분석 보고서를 생성합니다.
+        """
+        corp_code = None
+        if identifier.isdigit():
+            if len(identifier) == 6:
+                corp_code = self.dart_extractor.get_corp_code_by_stock_code(identifier)
+            elif len(identifier) == 8:
+                corp_code = self.dart_extractor.find_corp_code(identifier)
+
+        if not corp_code:
+            return f"# 오류: 제공된 식별자('{identifier}')에 해당하는 기업을 찾을 수 없습니다."
+        
+        return await self.generate_report(corp_code)
 
     async def generate_report_by_corp_code(self, corp_code: str) -> str:
         """
