@@ -24,6 +24,7 @@ class VectorMeta(BaseModel):
     i_chunk_on_doc: Optional[int] = None
     n_chunk_of_doc: Optional[int] = None
     n_page: Optional[int] = None
+    name: Optional[str] = None
 
 class DocumentProcessor:
     def __init__(self):
@@ -146,6 +147,7 @@ class DocumentProcessor:
                             page_chunk_info[page_index] += 1
 
                             chunk_with_title = f'[{self.legal_name}] [{chapter}] [{section}] {chunk_text}'
+                            name = self.legal_name+current_article_title
                             vectors.append(VectorMeta.model_validate({
                                 'text': chunk_with_title,
                                 'n_char': len(chunk_text),
@@ -156,6 +158,7 @@ class DocumentProcessor:
                                 'i_chunk_on_doc': chunk_idx + 1,
                                 'n_chunk_of_doc': 0,  # 아래에서 채움
                                 'n_page': len(doc) + index,
+                                'name' : name
                             }))
                             chunk_idx += 1
 

@@ -211,7 +211,6 @@ class VectorDB:
                 query_properties = query_fields,
                 limit = topk
             )
-            self.test = results
             results = [i.properties for i in results.objects]
         else:
             raise ValueError("Collection이 지정되지 않았습니다. set_collection()으로 먼저 설정하세요.")

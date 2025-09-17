@@ -2,7 +2,7 @@ from ..core.VDB.weaviateVDB import VectorDB
 from ..core.Preprocessor.preprocessor import DocumentProcessor
 from weaviate.classes.config import Property, DataType
 from ..core.llm.llm import Midm
-
+from glob import glob
 
 class RagService:
     def __init__(self, url=None, http_port=None, grpc_port=None):
@@ -18,7 +18,7 @@ class RagService:
 
         self.llm = Midm()
 
-    def Retriever(self, query:str, topk=4) -> dict:
+    def retriever(self, query:str, topk=4) -> dict:
         try:
             retrieved_documents = self.vdb.query_hybrid(query = query, topk = topk)
             return {'success' : True, 'data' : retrieved_documents}
@@ -36,7 +36,7 @@ class RagService:
             return {'success' : False, 'err_msg' : str(e)}
 
     def generate_answer(self, query:str) -> dict:
-        result = self.Retriever(query = query, topk = 4)
+        result = self.retriever(query = query, topk = 4)
         if result['success']:
             retrieved_documents = result['data']
             context = "\n\n".join([doc['text'] for doc in retrieved_documents])
@@ -76,10 +76,9 @@ class RagService:
                 return {'success' : False, 'err_msg' : 'LLM 응답 생성 실패'}
 
     def initialize(self):
+        
         try:
-            paths = ['./pdfs/전자금융감독규정(금융위원회고시)(제2025-4호)(20250205).pdf',
-                     './pdfs/전자금융감독규정시행세칙(금융감독원세칙)(20250205).pdf',
-                     './pdfs/전자금융거래법 시행령(대통령령)(제35038호)(20241227).pdf']
+            paths = glob('./pdfs/*.pdf')
             
             self.vdb.reset()
             processor = DocumentProcessor()
@@ -98,6 +97,7 @@ class RagService:
                 Property(name="i_chunk_on_doc", data_type=DataType.INT),
                 Property(name="n_chunk_of_doc", data_type=DataType.INT),
                 Property(name="n_page", data_type=DataType.INT),
+                Property(name="name", data_type=DataType.TEXT)
             ]
             self.vdb.create_collection(name = 'LegalDB', properties=properties)
             self.vdb.set_collection(name = 'LegalDB')
@@ -110,7 +110,9 @@ class RagService:
                         'n_chunk_of_page' : chunk.n_chunk_of_page,
                         'i_chunk_on_doc' : chunk.i_chunk_on_doc,
                         'n_chunk_of_doc' : chunk.n_chunk_of_doc,
-                        'n_page' : chunk.n_page} for chunk in all_chunks]
+                        'n_page' : chunk.n_page,
+                        'name' : chunk.name } for chunk in all_chunks]
+            
             self.vdb.add_objects(objects = objects)
             return {'success' : True}
         

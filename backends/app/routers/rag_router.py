@@ -11,8 +11,6 @@ async def get_rag_status():
 
 @router.post("/query")
 async def query_rag(request: RAGRequest) -> RAGResponse:
-    # This is a placeholder for your RAG logic
-    # You would integrate your rag_service here
     user_query = request.query
     service = RagService()
     response = service.generate_answer(query=user_query)
