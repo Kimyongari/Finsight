@@ -8,6 +8,8 @@ router = APIRouter()
 async def get_financial_status():
     return {"message": "Financial router is active"}
 
+'../midm agent/backends/pdfs/' + filename
+
 @router.post("/statement")
 async def get_financial_statement(request: ReportRequest) ->StatementResponse:
     # This is a placeholder for your financial service logic
