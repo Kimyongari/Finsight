@@ -33,3 +33,5 @@ async def upload_pdf(file: UploadFile = File(...)) -> FileUploadResponse:
         raise HTTPException(status_code=500, detail=f"There was an error uploading the file: {e}")
     response = FileUploadResponse(success = True, file_path= file_path, message=f"Successfully uploaded {file.filename}")
     return response
+
+    
