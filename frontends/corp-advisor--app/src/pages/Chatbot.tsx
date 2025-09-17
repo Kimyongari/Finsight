@@ -1,5 +1,7 @@
 // Chatbot.tsx
 import { useState, useEffect, useRef } from "react";
+import { useDropzone } from "react-dropzone";
+
 import { ChatForm } from "../components/ChatForm.tsx";
 import { Bubble } from "../components/Bubble.tsx";
 
@@ -150,6 +152,22 @@ function Chatbot() {
     setMessages([]);
   };
 
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+
+  const onDrop = (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (file && file.type === "application/pdf") {
+      setUploadedFile(file);
+    } else {
+      alert("PDF 파일만 업로드 가능합니다.");
+    }
+  };
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { "application/pdf": [] },
+  });
+
   const renderChatForm = () => (
     <ChatForm
       inputContainerClass={inputContainerClass}
@@ -203,6 +221,26 @@ function Chatbot() {
             <h1 className="text-4xl font-bold text-gray-800">금융 자문 챗봇</h1>
             <p className="text-gray-500 mt-2">CorpAdvisor</p>
           </header>
+          <div
+            {...getRootProps()}
+            className="border-2 border-dashed p-4 rounded cursor-pointer mb-4"
+          >
+            <input {...getInputProps()} />
+            {isDragActive
+              ? "여기에 파일을 놓으세요…"
+              : uploadedFile
+              ? `✅ ${uploadedFile.name}`
+              : "여기를 클릭하거나 파일을 드래그하여 PDF를 업로드하세요."}
+            {uploadedFile && (
+              <button
+                onClick={() => setUploadedFile(null)}
+                className="ml-6 bg-red-500 text-white px-3 py-1 rounded-full hover:bg-red-600 transition"
+              >
+                X
+              </button>
+            )}
+          </div>
+
           <div className="w-full">{renderChatForm()}</div>
         </div>
       )}
