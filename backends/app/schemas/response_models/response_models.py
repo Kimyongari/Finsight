@@ -18,3 +18,15 @@ class FileUploadResponse(BaseModel):
     success: bool
     file_path: str
     message: str
+
+class RegisterResponse(BaseModel):
+    success: bool
+    msg: str
+
+class ResetResponse(BaseModel):
+    success: bool
+    msg: str
+
+class InitResponse(BaseModel):
+    success: bool
+    msg: str
