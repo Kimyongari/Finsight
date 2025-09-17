@@ -18,7 +18,7 @@ async def generate_company_report(
     - **corp_code**: KRX에서 사용하는 8자리 종목 코드 (예: 삼성전자 - 00126380)
     """
     try:
-        report = await report_service.generate_report_by_corp_code(corp_code)
+        report = await report_service.generate_report(corp_code)
         return report
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"보고서 생성 중 오류 발생: {str(e)}")

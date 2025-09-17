@@ -51,6 +51,33 @@ class ReportService:
 *   **홈페이지:** {hm_url}
 *   **시장 구분:** {corp_cls} (종목코드: {stock_code})"""
 
+    def _extract_json_from_response(self, response: str, expected_type: str = "array") -> dict | list | None:
+        """
+        LLM 응답에서 JSON을 추출하는 공통 함수
+        """
+        try:
+            parsed = json.loads(response)
+            if expected_type == "array" and isinstance(parsed, list):
+                return parsed
+            elif expected_type == "object" and isinstance(parsed, dict):
+                return parsed
+            return parsed
+        except json.JSONDecodeError:
+            # 마크다운 코드 블록이나 일반 텍스트에서 JSON 추출 시도
+            if expected_type == "array":
+                json_match = re.search(r"(?s)```json\s*(\[.*?\])\s*```|(\[.*?\])", response)
+            else:
+                json_match = re.search(r"(?s)```json\s*(\{.*\})\s*```|(\{.*\})", response)
+            
+            if json_match:
+                json_str = json_match.group(1) or json_match.group(2)
+                try:
+                    parsed = json.loads(json_str)
+                    return parsed
+                except json.JSONDecodeError:
+                    pass
+            return None
+
     async def _categorize_news_list(self, company_name: str, news_list: list) -> list:
         """LLM을 사용하여 전체 뉴스 목록의 카테고리를 분류하고 관련성을 확인합니다."""
         categorize_prompt = f"""
@@ -58,12 +85,17 @@ class ReportService:
 
         **지시사항:**
         1.  각 뉴스의 내용이 '{company_name}'과 직접적으로 관련된 것인지 판단하세요.
-        2.  관련이 있다면, 아래 카테고리 중 가장 적절한 것으로 하나만 분류하세요.
-            - 카테고리: [시장 및 경쟁], [R&D 및 기술], [생산 및 투자], [리스크 및 규제], [실적 및 재무]
-        3.  만약 '{company_name}'과 직접적인 관련이 없는 뉴스라면, 카테고리를 반드시 'irrelevant'로 지정하세요.
-        4.  결과를 반드시 아래의 JSON 형식으로 반환해야 합니다. 다른 설명 없이 JSON 배열만 반환하세요.
+        2.  관련이 있다면, 아래 5개 카테고리 중 하나로 분류하세요.
+        - **[시장 및 경쟁]**: 시장 점유율, 경쟁사와의 경쟁, 신규 시장 진출, 업계 순위, 브랜드 평가
+        - **[R&D 및 기술]**: 신기술 개발, 특허 출원/등록, 연구개발 투자, 기술 혁신, 신제품 기술 사양, 소프트웨어 업데이트
+        - **[생산 및 투자]**: 공장 건설/확장, 설비 투자, 생산능력 증설, 인력 채용, 자본 투자 발표
+        - **[리스크 및 규제]**: 정부 규제 변화, 법적 소송, 환경 이슈, 공급망 리스크, 정치적 리스크, 무역 분쟁
+        - **[실적 및 재무]**: 매출/영업이익 발표, 분기 실적, 재무제표, 배당, 신용등급, 목표주가 조정
 
-        **JSON 출력 형식:**
+        3.  '{company_name}'과 직접적인 관련이 없다면, 'irrelevant'로 분류하세요.
+        
+        **출력 형식*:*
+        결과를 반드시 아래의 JSON 형식으로 반환해야 합니다. 다른 설명 없이 JSON 배열만 반환하세요.
         [
             {{"index": 0, "category": "(분류된 카테고리 또는 irrelevant)"}},
             {{"index": 1, "category": "(분류된 카테고리 또는 irrelevant)"}},
@@ -79,54 +111,144 @@ class ReportService:
                 system_prompt=categorize_prompt, user_input=input_text
             )
 
-            categorized_list = None
-            try:
-                categorized_list = json.loads(response)
-            except json.JSONDecodeError:
-                json_match = re.search(r"[[.*]]", response, re.DOTALL)
-                if json_match:
-                    json_str = json_match.group()
-                    categorized_list = json.loads(json_str)
-                else:
-                    print(
-                        f"오류: LLM 응답에서 JSON 배열을 찾을 수 없습니다. 응답: {response}"
-                    )
+            categorized_list = self._extract_json_from_response(response, "array")
+            if not categorized_list:
                     return []
 
             for item in categorized_list:
-                if 0 <= item["index"] < len(news_list):
+                if 0 <= item.get("index", -1) < len(news_list):
                     news_list[item["index"]]["category"] = item["category"]
             return news_list
 
-        except (json.JSONDecodeError, KeyError) as e:
-            print(f"오류: 뉴스 분류 단계에서 LLM 응답 처리 실패 - {e}")
+        except (KeyError, TypeError) as e:
             return []
 
-    async def _summarize_and_analyze_news(self, news_item: dict) -> str:
-        """단일 뉴스 기사를 요약하고 분석합니다."""
+    async def _summarize_and_analyze_news(self, news_item: dict) -> dict:
+        """단일 뉴스 기사를 요약하고 분석하여 딕셔너리로 반환합니다."""
         summary_prompt = f"""
-        당신은 금융 애널리스트입니다. 다음 뉴스 기사를 분석하고 아래 형식에 맞춰 요약해주세요.
+        당신은 금융 애널리스트입니다. 다음 뉴스 기사를 분석하고 아래 JSON 형식에 맞춰 요약해주세요.
 
         **지시사항:**
-        1.  주어진 기사의 핵심 내용을 2~3문장으로 간결하게 요약합니다.
+        1.  주어진 기사의 핵심 내용을 3문장으로 간결하게 요약합니다.
         2.  해당 뉴스가 회사의 재무, 영업, 주가 등에 미칠 **단기적/장기적 영향**을 분석하고, 투자자 관점에서 어떤 의미가 있는지 **반드시 해석**해야 합니다.
-        3.  결과는 아래 마크다운 형식을 **정확히, 글자 하나도 빠짐없이 준수하여** 작성하세요.
-        4.  **절대로 `#`를 사용한 마크다운 헤더(예: `## 핵심 요약`)를 출력하면 안 됩니다.**
+        3.  결과를 반드시 아래의 JSON 형식으로 반환해야 합니다. 다른 설명 없이 JSON 객체만 반환하세요.
 
-        **출력 형식:**
-        - **핵심 요약:** (여기에 핵심 내용 요약)
-        - **영향 분석:** (여기에 영향 분석)
-        
-        **출력 예시:**
-        - **핵심 요약:** 삼성전자가 차세대 반도체 기술 개발에 성공하여, 향후 메모리 시장에서의 리더십을 더욱 공고히 할 것으로 보입니다.
-        - **영향 분석:** 단기적으로는 주가에 긍정적 모멘텀으로 작용할 것이며, 장기적으로는 회사의 기술적 해자를 강화하고 경쟁사와의 격차를 벌리는 효과를 가져올 것입니다.
-        """
+        **JSON 출력 형식:**
+        {{
+            "summary": "(여기에 핵심 내용 요약)",
+            "analysis": "(여기에 영향 분석)"
+        }} """
 
+        user_input = (
+            f"제목: {news_item.get('title', '')}\n\n"
+            f"요약: {news_item.get('snippet', '')}\n\n"
+            f"기사 전문:\n{news_item.get('content', '')}"
+        )
         response = await self.llm.acall(
             system_prompt=summary_prompt,
-            user_input=f"기사 전문:\n{news_item['content']}",
+            user_input=user_input,
         )
-        return response
+
+        try:
+            result = self._extract_json_from_response(response, "object")
+            if result and isinstance(result, dict):
+                return result
+            else:
+                return {
+                    "summary": "요약 생성 실패",
+                    "analysis": "영향 분석 실패",
+                }
+        except (KeyError, TypeError) as e:
+            return {
+                "summary": "요약 처리 실패",
+                "analysis": "영향 분석 처리 실패",
+            }
+
+    async def _select_and_verify_news(
+        self, company_name: str, stock_name: str, news_list: list, num_to_select: int = 4
+    ) -> list:
+        """
+        뉴스 목록을 필터링, 분류, 선택하고 최종적으로 관련성을 검증하여
+        다양하고 관련성 높은 뉴스 기사 목록을 반환합니다.
+        """
+        # 1단계: 1차 분류 (제목과 요약 기반)
+        categorized_news = await self._categorize_news_list(company_name, news_list)
+
+        # 2단계: 관련 없는 뉴스 및 제목 유사 기사 제거
+        relevant_news = [
+            n for n in categorized_news if n.get("category") != "irrelevant"
+        ]
+
+        unique_articles = []
+        processed_titles = []
+        title_word_sets = []
+        
+        for news_item in relevant_news:
+            title = news_item.get("title", "")
+            if not title:
+                continue
+                
+            current_words = set(title.split())
+            if not current_words:
+                continue
+                
+            is_similar = False
+            for existing_words in title_word_sets:
+                intersection = len(current_words.intersection(existing_words))
+                union = len(current_words.union(existing_words))
+                if union > 0 and (intersection / union) > 0.6:
+                    is_similar = True
+                    break
+                    
+            if not is_similar:
+                unique_articles.append(news_item)
+                processed_titles.append(title)
+                title_word_sets.append(current_words)
+
+
+        # 3단계: 카테고리별로 분류 (관련성 검증 제거)
+        available_categories = ["시장 및 경쟁", "R&D 및 기술", "생산 및 투자", "리스크 및 규제", "실적 및 재무"]
+        articles_by_category = {cat: [] for cat in available_categories}
+
+        for news_item in unique_articles:
+            category = news_item.get("category", "")
+            # 대괄호 제거 및 공백 정리
+            cleaned_category = category.strip().strip('[]').strip()
+
+            if cleaned_category in available_categories:
+                articles_by_category[cleaned_category].append(news_item)
+                news_item["category"] = cleaned_category  # 정리된 카테고리로 업데이트
+
+        # 4단계: 다양한 카테고리의 뉴스를 선택하기 위한 로직
+        final_selection = []
+
+        # 기사가 있는 카테고리만 필터링
+        categories_with_articles = [cat for cat in available_categories
+                                  if articles_by_category[cat]]
+
+        # 최대 4개의 서로 다른 카테고리에서 각각 1개씩 선택
+        selected_categories = categories_with_articles[:num_to_select]
+
+        for category in selected_categories:
+            if articles_by_category[category]:
+                selected_article = articles_by_category[category][0]
+                final_selection.append(selected_article)
+
+        # 4개 미만인 경우, 남은 기사 중에서 추가 선택 (다른 카테고리 우선)
+        if len(final_selection) < num_to_select:
+            remaining_articles = []
+            for category in available_categories:
+                if category not in selected_categories:
+                    remaining_articles.extend(articles_by_category[category])
+
+            # 선택된 카테고리에서 추가 기사가 있다면 그것도 포함
+            for category in selected_categories:
+                remaining_articles.extend(articles_by_category[category][1:])
+
+            needed = num_to_select - len(final_selection)
+            final_selection.extend(remaining_articles[:needed])
+
+        return final_selection
 
     async def _generate_stock_chart(
         self, corp_code: str, stock_code: str, stock_name: str
@@ -141,15 +263,9 @@ class ReportService:
             start_date = (today - timedelta(days=365)).strftime("%Y%m%d")
             end_date = today.strftime("%Y%m%d")
 
-            df_stock = stock.get_market_ohlcv(start_date, end_date, stock_code)[
-                ["종가"]
-            ].rename(columns={"종가": stock_name})
-            df_kospi = stock.get_index_ohlcv(start_date, end_date, "1001")[
-                ["종가"]
-            ].rename(columns={"종가": "KOSPI"})
-            df_kosdaq = stock.get_index_ohlcv(start_date, end_date, "2001")[
-                ["종가"]
-            ].rename(columns={"종가": "KOSDAQ"})
+            df_stock = stock.get_market_ohlcv(start_date, end_date, stock_code)[["종가"]].rename(columns={"종가": stock_name})
+            df_kospi = stock.get_index_ohlcv(start_date, end_date, "1001")[["종가"]].rename(columns={"종가": "KOSPI"})
+            df_kosdaq = stock.get_index_ohlcv(start_date, end_date, "2001")[["종가"]].rename(columns={"종가": "KOSDAQ"})
 
             df_merged = df_stock.join(df_kospi, how="inner").join(
                 df_kosdaq, how="inner"
@@ -190,7 +306,6 @@ class ReportService:
             return f"[{stock_name} 주가 비교 차트 보기]({chart_filepath})"
 
         except Exception as e:
-            print(f"주가 차트 생성 중 오류 발생: {e}")
             return "<p>주가 비교 차트를 생성하는 데 실패했습니다.</p>"
 
     async def generate_report(self, corp_code: str) -> str:
@@ -210,41 +325,18 @@ class ReportService:
         stock_chart_task = self._generate_stock_chart(corp_code, stock_code, stock_name)
 
         # 2. 최신 뉴스 처리
-        news_search_query = f"{stock_name} 관련 뉴스"
+        news_search_query = f"{company_name} 최신 뉴스"
         web_search_tool = WebSearchTool(
-            query=news_search_query, num_results=10, time_period_months=3
+            query=news_search_query, num_results=20, time_period_months=3
         )
         scraped_news = await web_search_tool.search_and_scrape()
 
         if not scraped_news:
             recent_news_summary = "최신 뉴스를 찾을 수 없습니다."
         else:
-            categorized_news = await self._categorize_news_list(
-                company_name, scraped_news
+            selected_articles = await self._select_and_verify_news(
+                company_name, stock_name, scraped_news
             )
-            relevant_news = [
-                news
-                for news in categorized_news
-                if news.get("category") != "irrelevant"
-            ]
-
-            selected_articles = []
-            used_categories = set()
-            if relevant_news:
-                for news_item in relevant_news:
-                    category = news_item.get("category")
-                    if category and category not in used_categories:
-                        selected_articles.append(news_item)
-                        used_categories.add(category)
-
-                if len(selected_articles) < 4:
-                    selected_links = {article["link"] for article in selected_articles}
-                    for news_item in relevant_news:
-                        if len(selected_articles) >= 4:
-                            break
-                        if news_item["link"] not in selected_links:
-                            selected_articles.append(news_item)
-                            selected_links.add(news_item["link"])
 
             if not selected_articles:
                 recent_news_summary = "주요 뉴스를 선택하는 데 실패했습니다."
@@ -263,9 +355,11 @@ class ReportService:
                     link = news_item.get("link", "#")
                     date = news_item.get("publish_date", "날짜 미상")
                     category = news_item.get("category", "분류 안됨")
+                    summary = analysis_result.get("summary", "요약 없음")
+                    analysis = analysis_result.get("analysis", "분석 없음")
 
                     header = f"#### [{title}]({link}) ({date})"
-                    body = f"- **카테고리:** [{category}]\n{analysis_result}"
+                    body = f"- **카테고리:** [{category}]\n- **핵심 요약:** {summary}\n- **영향 분석:** {analysis}"
                     news_summary_parts.append(f"{header}\n{body}")
 
                 recent_news_summary = "\n\n".join(news_summary_parts)
@@ -353,15 +447,5 @@ class ReportService:
 
         if not corp_code:
             return f"# 오류: 제공된 식별자('{identifier}')에 해당하는 기업을 찾을 수 없습니다."
-
-        return await self.generate_report(corp_code)
-
-    async def generate_report_by_corp_code(self, corp_code: str) -> str:
-        """
-        종목 코드를 기반으로 기업 분석 보고서를 생성합니다.
-        """
-        corp_code = self.dart_extractor.validate_corp_code(corp_code)
-        if not corp_code:
-            return f"# 오류: 종목 코드에 해당하는 기업을 찾을 수 없습니다 (corp_code: {corp_code})"
 
         return await self.generate_report(corp_code)
