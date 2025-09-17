@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Bubble } from "../components/Bubble.tsx";
 import { useChat } from "../ChatContext.tsx";
-import { ChatForm } from "../components/ChatForm.tsx";
+import { FooterText } from "../components/FooterText.tsx";
 import { useCsvData, FinancialRecord } from "../hooks/useCsvData";
 import Table from "../components/Table.tsx";
 type Message = {
@@ -79,10 +79,11 @@ function Report({ csvData, isLoading, loadError }: ReportPageProps) {
     localStorage.setItem("chatMessages", JSON.stringify(messages));
   }, [messages]);
 
-  const handleSubmit = async () => {
-    if (!inputValue.trim()) return;
+  const handleSubmit = async (corpCode?: string) => {
+    // corpCode가 있으면 그걸 쓰고, 없으면 inputValue를 씀
+    const codeToUse = corpCode ?? inputValue;
+    if (!codeToUse.trim()) return;
 
-    // 로딩 중 메시지
     const loadingAnswerId = Date.now() + 1;
     const loadingAnswer: Message = {
       id: loadingAnswerId,
@@ -90,26 +91,19 @@ function Report({ csvData, isLoading, loadError }: ReportPageProps) {
       text: "답변을 생성 중입니다. 조금만 기다려주세요.",
     };
 
-    // 로딩 메시지만 상태에 추가
     setMessages((prev) => [...prev, loadingAnswer]);
     setInputValue("");
 
     try {
-      // 서버 요청
       const response = await fetch(
-        `http://127.0.0.1:8000/report/${inputValue}`,
+        `http://127.0.0.1:8000/report/${codeToUse}`,
         {
           method: "GET",
         }
       );
-
-      if (!response.ok) {
-        throw new Error("네트워크 응답이 실패했습니다.");
-      }
-
+      if (!response.ok) throw new Error("네트워크 응답이 실패했습니다.");
       const data = await response.text();
 
-      // 로딩 메시지를 실제 답변으로 교체
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === loadingAnswerId ? { ...msg, text: data } : msg
@@ -117,8 +111,6 @@ function Report({ csvData, isLoading, loadError }: ReportPageProps) {
       );
     } catch (err) {
       console.error("답변을 가져오는 데 실패했습니다:", err);
-
-      // 에러 발생 시 로딩 메시지를 실패 메시지로 업데이트
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === loadingAnswerId
@@ -145,7 +137,7 @@ function Report({ csvData, isLoading, loadError }: ReportPageProps) {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="w-full flex flex-col justify-center items-center h-screen bg-white font-sans">
+    <div className="w-full flex flex-col justify-center items-start min-h-screen bg-white font-sans">
       {hasMessages ? (
         <>
           <main className="w-full flex-1 overflow-y-auto pb-32">
@@ -183,42 +175,27 @@ function Report({ csvData, isLoading, loadError }: ReportPageProps) {
           </footer>
         </>
       ) : (
-        <div
-          className={`${
-            deviceType === "mobile"
-              ? "w-full"
-              : deviceType === "tablet"
-              ? "w-3/4"
-              : "w-1/2"
-          } flex flex-col justify-center items-center h-full gap-6 p-4`}
-        >
-          <header className="text-center">
-            <h1 className="text-4xl font-bold text-gray-800">
-              기업 보고서 생성
-            </h1>
-            <p className="text-gray-500 mt-2">CorpAdvisor</p>
-          </header>
-          <main className="w-full">
-            <Table
-              loading={isLoading}
-              error={loadError}
-              data={filteredData}
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-            />
-            <ChatForm
-              inputContainerClass={inputContainerClass}
-              textareaRef={textareaRef}
-              inputValue={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onClick={handleSubmit}
-              defaultPlaceholder="기업 코드를 입력해주세요."
-              afterSubmitPlaceholder="추가 질문을 입력하세요."
-              hasMessages={hasMessages}
-              isLoading={false}
-            />
-          </main>
+        <div className="w-full min-h-screen flex-1 flex justify-center items-center bg-gray-50">
+          <div className="flex flex-col justify-start items-start gap-2 p-4">
+            <header className="w-full text-center">
+              <h1 className="text-4xl font-bold text-gray-800 mb-2">
+                기업 보고서 생성
+              </h1>
+              <p className="text-gray-500">CorpAdvisor</p>
+            </header>
+            <main className="w-full max-w-screen-md">
+              <div className="overflow-x-auto w-full">
+                <Table
+                  loading={isLoading}
+                  error={loadError}
+                  data={filteredData}
+                  searchTerm={searchTerm}
+                  onSearchChange={setSearchTerm}
+                  onClick={(corpCode: string) => handleSubmit(corpCode)}
+                />
+              </div>
+            </main>
+          </div>
         </div>
       )}
     </div>

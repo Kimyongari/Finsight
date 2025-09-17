@@ -7,6 +7,7 @@ interface ReportTableProps {
   data: FinancialRecord[];
   searchTerm: string;
   onSearchChange: (term: string) => void;
+  onClick?: (corp_code: string) => void;
 }
 
 const ReportTable = ({
@@ -15,6 +16,7 @@ const ReportTable = ({
   data,
   searchTerm,
   onSearchChange,
+  onClick,
 }: ReportTableProps) => {
   // 로딩 중일 때 표시할 UI
   if (loading) {
@@ -28,33 +30,33 @@ const ReportTable = ({
 
   // 실제 UI를 렌더링하는 부분
   return (
-    <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-md p-6">
+    <div className="mx-auto bg-white rounded-xl shadow-md p-6 mb-6">
       {/* 검색창 */}
-      <div className="mb-6">
+      <div className="mb-3 flex justify-end">
         <input
           type="text"
           placeholder="기업명을 검색해주세요."
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full md:w-1/3 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+          className="w-full md:w-1/3 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
         />
       </div>
 
       {/* 데이터 테이블 */}
-      <div className="max-h-96 overflow-y-auto">
-        <table className="w-full text-left border-collapse">
+      <div className="max-h-72 overflow-y-auto ">
+        <table className="table-fixed w-full text-left border-collapse">
           <thead className="bg-gray-100">
             <tr>
-              <th className="p-4 border-b-2 border-gray-200 font-semibold text-gray-600">
+              <th className="p-3 border-b-2 border-gray-200 font-semibold text-gray-600">
                 기업 코드
               </th>
-              <th className="p-4 border-b-2 border-gray-200 font-semibold text-gray-600">
+              <th className="p-3 border-b-2 border-gray-200 font-semibold text-gray-600">
                 기업 명
               </th>
-              <th className="p-4 border-b-2 border-gray-200 font-semibold text-gray-600">
+              <th className="p-3 border-b-2 border-gray-200 font-semibold text-gray-600">
                 기업 영문 명
               </th>
-              <th className="p-4 border-b-2 border-gray-200 font-semibold text-gray-600">
+              <th className="p-3 border-b-2 border-gray-200 font-semibold text-gray-600">
                 수정 일자
               </th>
             </tr>
@@ -64,25 +66,26 @@ const ReportTable = ({
               data.map((row, index) => (
                 <tr
                   key={index}
-                  className="hover:bg-gray-50 transition-colors"
+                  className="hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => onClick && onClick(row.corp_code)}
                 >
-                  <td className="p-4 border-b border-gray-200 text-gray-700">
+                  <td className="p-3 border-b border-gray-200 text-gray-700 break-words whitespace-normal">
                     {row.corp_code}
                   </td>
-                  <td className="p-4 border-b border-gray-200 text-gray-700">
+                  <td className="p-3 border-b border-gray-200 text-gray-700 break-words whitespace-normal">
                     {row.corp_name}
                   </td>
-                  <td className="p-4 border-b border-gray-200 text-gray-700">
+                  <td className="p-3 border-b border-gray-200 text-gray-700 break-words whitespace-normal">
                     {row.corp_eng_name}
                   </td>
-                  <td className="p-4 border-b border-gray-200 text-gray-700">
+                  <td className="p-3 border-b border-gray-200 text-gray-700 break-words whitespace-normal">
                     {row.modify_date}
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={4} className="p-4 text-center text-gray-500">
+                <td colSpan={4} className="p-3 text-center text-gray-500">
                   검색 결과가 없습니다.
                 </td>
               </tr>
