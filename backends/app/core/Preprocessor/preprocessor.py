@@ -33,9 +33,22 @@ class DocumentProcessor:
 
     def name_finder(self, texts):
         model = Midm()
-        system_prompt = '''당신은 법률 전문가입니다. 사용자가 건넨 문서를 읽고 법의 제목을 찾아 주세요.
-                문서의 제목은 문서 안에서 찾으세요.
-                해설은 필요 없으며, 문서의 제목만 말해 주세요.'''
+        system_prompt = '''당신은 법률 문서를 분석하는 전문가입니다. 사용자가 제공한 문서를 읽고, 문서 안에 기재된 법의 제목을 정확히 찾아서 출력하세요.
+
+지침:
+1. 법의 제목은 반드시 문서 안에서 직접 찾아야 합니다.
+2. 제목에 '시행령', '시행세칙', '규칙', '고시' 등이 포함되어 있다면 반드시 포함하여 그대로 출력해야 합니다.
+3. 해설, 설명, 부가 텍스트 등은 절대 포함하지 말고 법의 제목만 출력합니다.
+4. 제목은 원문 그대로 출력하며, 단어를 생략하거나 수정하지 않습니다.
+5. 문서 안에 제목이 여러 개 있을 경우, 가장 상단에 위치한 법령 제목을 선택합니다.
+6. 출력은 오직 법령 제목만 한 줄로 작성합니다.
+
+예시 입력:
+[개인정보 보호법 시행령]
+제1조(목적) 이 시행령은 개인정보 보호법에서 위임된 사항을 규정함을 목적으로 한다.....<생략>
+
+예시 출력:
+개인정보 보호법 시행령'''
         user_input = f'문서 : {texts}\n\n제목 :'
         response = model.call(system_prompt=system_prompt, user_input=user_input)
         return response
@@ -47,11 +60,11 @@ class DocumentProcessor:
     def split_documents(self, doc):
         for page in doc:
             self.all_text += page.get_text()
-        
+        first_page = doc[0].get_text()
         start = self.all_text.find('제1조(목적)')
         end = self.all_text[start+7:].find('제1조(목적)')
         names = self.all_text[start:end+7]
-        self.legal_name = self.name_finder(names)
+        self.legal_name = self.name_finder(first_page)
         self.all_text = self.all_text[end:]
 
         lines = names.splitlines()
@@ -145,8 +158,10 @@ class DocumentProcessor:
                             page_chunk_info.setdefault(page_index, 0)
                             i_chunk_on_page = page_chunk_info[page_index] + 1
                             page_chunk_info[page_index] += 1
-
-                            chunk_with_title = f'[{self.legal_name}] [{chapter}] [{section}] {chunk_text}'
+                            if chapter == '목적' and section !='제1조(목적)':
+                                chunk_with_title = f'[{self.legal_name}] [{section}] {chunk_text}'
+                            else:
+                                chunk_with_title = f'[{self.legal_name}] [{chapter}] [{section}] {chunk_text}'
                             name = self.legal_name+current_article_title
                             vectors.append(VectorMeta.model_validate({
                                 'text': chunk_with_title,

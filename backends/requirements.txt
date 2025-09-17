@@ -16,3 +16,5 @@ tabulate
 plotly==6.3.0
 pykrx==1.0.51
 langgraph
+python-multipart
+aiofiles

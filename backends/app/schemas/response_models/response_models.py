@@ -13,3 +13,8 @@ class CorplistResponse(BaseModel):
     data: list[dict]
     success: bool
     err_msg: str
+
+class FileUploadResponse(BaseModel):
+    success: bool
+    file_path: str
+    message: str
