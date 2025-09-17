@@ -9,3 +9,6 @@ class RAGRequest(BaseModel):
 
 class ReportRequest(BaseModel):
     corp_code: str
+
+class KeywordRequest(BaseModel):
+    keyword: str

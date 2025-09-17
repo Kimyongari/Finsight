@@ -80,3 +80,12 @@ class DartExtractor:
             import traceback
             traceback.print_exc()
             return {"status": "500", "message": str(e)}
+
+    def get_corp_list_from_keyword(self, keyword:str):
+        corp_list = dart.get_corp_list()
+        companies = corp_list.find_by_corp_name(keyword)
+        if companies:
+            return [corp.to_dict() for corp in companies]
+        else:
+            return None
+        

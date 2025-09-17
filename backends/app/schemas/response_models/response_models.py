@@ -7,3 +7,8 @@ class RAGResponse(BaseModel):
 class StatementResponse(BaseModel):
     statement: str
     success:bool
+
+class CorplistResponse(BaseModel):
+    data: list[dict]
+    success: bool
+    err_msg: str
