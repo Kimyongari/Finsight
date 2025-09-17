@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Bubble } from "../components/Bubble.tsx";
 import { useChat } from "../ChatContext.tsx";
-import { FooterText } from "../components/FooterText.tsx";
-import { useCsvData, FinancialRecord } from "../hooks/useCsvData";
+import { FinancialRecord } from "../hooks/useCsvData";
 import Table from "../components/Table.tsx";
 type Message = {
   id: number;
@@ -135,6 +134,9 @@ function Report({ csvData, isLoading, loadError }: ReportPageProps) {
   };
 
   const hasMessages = messages.length > 0;
+
+  // 업로드된 파일
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
   return (
     <div className="w-full flex flex-col justify-center items-start min-h-screen bg-white font-sans">
