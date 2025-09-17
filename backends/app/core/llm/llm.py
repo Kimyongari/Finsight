@@ -59,3 +59,5 @@ class Midm:
         except Exception as e:
             print(f"오류가 발생했습니다: {e}")
             return None
+
+    
