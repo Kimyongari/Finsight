@@ -14,7 +14,8 @@ async def query_rag(request: RAGRequest) -> RAGResponse:
     user_query = request.query
     service = RagService()
     response = service.generate_answer(query=user_query)
+    
     if 'err_msg' in response:
-        return RAGResponse(success = response['success'], answer = response['err_msg'])
+        return RAGResponse(success = response['success'], answer = response['err_msg'], retrieved_documents=[{}])
     else:
-        return RAGResponse(success = response['success'], answer = response['data'])
+        return RAGResponse(success = response['success'], answer = response['data'], retrieved_documents=response['retrieved_documents'])

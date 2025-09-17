@@ -71,9 +71,11 @@ class RagService:
             self.test2 = question
             answer = self.llm.call(system_prompt = system_prompt,user_input= question)
             if answer:
-                return {'success' : True, 'data' : answer}
+                return {'success' : True, 'data' : answer, 'retrieved_documents' : retrieved_documents}
             else:
                 return {'success' : False, 'err_msg' : 'LLM 응답 생성 실패'}
+        else:
+            return {'success' : False, 'err_msg' : 'LLM 응답 생성 실패'}
 
     def initialize(self):
         
@@ -97,7 +99,8 @@ class RagService:
                 Property(name="i_chunk_on_doc", data_type=DataType.INT),
                 Property(name="n_chunk_of_doc", data_type=DataType.INT),
                 Property(name="n_page", data_type=DataType.INT),
-                Property(name="name", data_type=DataType.TEXT)
+                Property(name="name", data_type=DataType.TEXT),
+                Property(name="file_path", data_type=DataType.TEXT)
             ]
             self.vdb.create_collection(name = 'LegalDB', properties=properties)
             self.vdb.set_collection(name = 'LegalDB')
@@ -111,7 +114,8 @@ class RagService:
                         'i_chunk_on_doc' : chunk.i_chunk_on_doc,
                         'n_chunk_of_doc' : chunk.n_chunk_of_doc,
                         'n_page' : chunk.n_page,
-                        'name' : chunk.name } for chunk in all_chunks]
+                        'name' : chunk.name,
+                        'file_path' : chunk.file_path } for chunk in all_chunks]
             
             self.vdb.add_objects(objects = objects)
             return {'success' : True}

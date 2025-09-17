@@ -158,7 +158,8 @@ class DocumentProcessor:
                                 'i_chunk_on_doc': chunk_idx + 1,
                                 'n_chunk_of_doc': 0,  # 아래에서 채움
                                 'n_page': len(doc) + index,
-                                'name' : name
+                                'name' : name,
+                                'file_path' : self.file_path
                             }))
                             chunk_idx += 1
 
@@ -177,6 +178,7 @@ class DocumentProcessor:
         return vectors
     
     def preprocess(self, file_path: str):
+        self.file_path = file_path
         documents: list[Document] = self.load_documents(file_path)
         self.documents = documents
         structure: dict[list] = self.split_documents(documents)
