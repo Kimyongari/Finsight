@@ -5,7 +5,7 @@ import { ChatForm } from "../components/ChatForm.tsx";
 import { Bubble } from "../components/Bubble.tsx";
 import { Button } from "../components/Button.tsx";
 import { Modal } from "../components/Modal.tsx";
-
+import PdfViewer from "../components/PdfViewer.tsx";
 // 메시지 타입 정의
 type Message = {
   id: number;
@@ -88,6 +88,7 @@ function Chatbot() {
         body: JSON.stringify({ query: newQuestion.text }),
       });
       const data = await response.json();
+      console.log("답변 데이터:", data);
       setTypingTextMap((prev) => ({ ...prev, [loadingAnswerId]: data.answer })); // 전체 답변 텍스트를 임시 상태에 저장, 타이핑 효과
     } catch (err) {
       console.error("답변을 가져오는 데 실패했습니다:", err);
@@ -232,6 +233,7 @@ function Chatbot() {
           </main>
           <footer className="w-full bg-white border-t border-gray-200 p-4 fixed bottom-0 left-0 right-0">
             {renderChatForm()}
+            <PdfViewer />
           </footer>
         </>
       ) : (
