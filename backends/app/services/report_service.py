@@ -258,35 +258,61 @@ class ReportService:
         당신은 재무 분석 전문가입니다. 주어진 재무제표에서 손익계산서의 누적 데이터만을 사용하여 동기간 비교 차트를 생성하기 위한 지표를 추출해주세요.
 
         **핵심 지시사항:**
-        1. **손익계산서의 "누적" 컬럼 데이터만 선택**: 3개월, 분기별 데이터는 제외하고 오직 누적 데이터만 사용
-        2. **동일 기간 비교**: 전년 동기간과 올해 동기간의 누적 실적만 비교
-           - 예: "제 56 기 반기 누적" vs "제 57 기 반기 누적"
-           - 예: "제 55 기 누적" vs "제 56 기 누적"
-        3. **재무상태표 데이터 제외**: 자산총계, 자본총계 등 재무상태표 항목은 선택하지 마세요.
-        4. **손익 지표만 선택**: 매출액, 매출총이익, 영업이익, 당기순이익 등 손익계산서 항목만 선택
-        5. **최대 4개 지표**: 규모가 비슷하고 의미 있는 비교가 가능한 지표들로 제한
-        6. **X축 라벨 통일**: 모든 기간 표기를 "제 N기 반기" 형식으로 통일 (누적은 생략)
+        1. **실제 기간 정확 추출**: 재무제표에 나타난 실제 기수를 정확히 읽어서 사용하세요. 예시에 구애받지 말고 실제 데이터의 기간을 사용하세요.
+        2. **손익계산서의 "누적" 컬럼 데이터만 선택**: 3개월, 분기별 데이터는 제외하고 오직 누적 데이터만 사용
+        3. **동일 기간 비교**: 전년 동기간과 올해 동기간의 누적 실적만 비교 (반기면 반기끼리, 기말이면 기말끼리)
+        4. **재무상태표 데이터 제외**: 자산총계, 자본총계 등 재무상태표 항목은 선택하지 마세요
+        5. **손익 지표만 선택**: 매출액, 매출총이익, 영업이익, 당기순이익 등 손익계산서 항목만 선택
+        6. **최대 4개 지표**: 규모가 비슷하고 의미 있는 비교가 가능한 지표들로 제한
+        7. **정확한 단위 추출**: 재무제표에 명시된 단위 정보를 정확히 추출하여 기록하세요
+        8. **기간 표기 통일**: 추출한 실제 기간을 "제 N기 반기" 또는 "제 N기" 형식으로 정리 (누적은 생략)
 
-        **선택 우선순위:**
-        1순위: 매출액
-        2순위: 영업이익
-        3순위: 당기순이익
-        4순위: 매출총이익 또는 영업활동현금흐름
+        **단위 추출 주의사항:**
+        - 재무제표 상단의 "(단위 : 백만원)" 등의 표기를 찾아서 정확히 기록
+        - 만약 단위 표기가 없으면 숫자 크기를 보고 추정 (예: 100,000,000 이상이면 백만원 단위일 가능성)
 
-        **출력 형식:**
+        **지표명 사용 절대 원칙:**
+        **⚠️ 중요: 재무제표에 나타난 지표 명칭을 그대로 사용하세요. 임의로 매핑하거나 변경하면 안 됩니다.**
+        - 재무제표에 "당기순이익"이라고 되어있으면 "당기순이익"으로 사용
+        - 재무제표에 "매출액"이라고 되어있으면 "매출액"으로 사용
+        - 절대로 다른 지표명으로 바꾸지 마세요
+
+        **지표 선택 가이드라인 (업종 무관):**
+        재무제표를 분석하여 다음 카테고리에서 의미 있는 지표를 4개 선택하세요:
+
+        1. **수익 지표**: 기업의 사업 규모와 성장성을 보여주는 지표
+           - 예시: 매출액, 영업수익, 순매출액 등 (재무제표의 실제 명칭 사용)
+
+        2. **수익성 지표**: 기업의 수익 창출 능력을 보여주는 지표
+           - 예시: 영업이익, 매출총이익, 세전이익 등 (재무제표의 실제 명칭 사용)
+
+        3. **순이익 지표**: 최종적인 수익 결과를 보여주는 지표
+           - 예시: 당기순이익, 연결당기순이익, 지배주주순이익 등 (재무제표의 실제 명칭 사용)
+
+        4. **기타 손익 지표**: 기업의 특성에 따라 중요한 기타 손익계산서 항목
+           - 예시: 금융손익, 기타손익, 특별손익 등 (재무제표의 실제 명칭 사용)
+
+        **선택 기준:**
+        - 해당 기업과 재무제표의 특성을 고려하여 가장 의미 있는 4개 지표를 선택
+        - 각 카테고리에서 하나씩 선택하되, 데이터가 없거나 의미가 없으면 다른 카테고리에서 추가 선택
+        - 업종별 특성보다는 재무제표 자체의 데이터 품질과 의미를 우선 고려
+
+        **JSON 출력 형식:**
         {
             "features": [
                 {
-                    "name": "매출액",
-                    "category": "성장성",
-                    "unit": "백만원",
+                    "name": "재무제표의_실제_지표명",
+                    "category": "수익|수익성|순이익|기타손익",
+                    "unit": "실제_추출된_단위",
                     "data": [
-                        {"period": "제 56기 반기", "value": 104973735},
-                        {"period": "제 57기 반기", "value": 110300265}
+                        {"period": "실제_기간_1", "value": 실제값1},
+                        {"period": "실제_기간_2", "value": 실제값2}
                     ]
                 }
             ]
         }
+
+        **중요**: 반드시 재무제표에 나타난 실제 기간, 단위, 지표명을 그대로 사용하고, 임의로 수정하거나 예시를 따라하지 마세요.
         """
 
         try:
@@ -302,6 +328,61 @@ class ReportService:
         except Exception as e:
             print(f"재무 피처 추출 실패: {e}")
             return {"features": []}
+
+    def _normalize_unit_and_value(self, value: float, unit: str) -> tuple:
+        """
+        단위와 값을 정규화하여 일관된 형태로 변환합니다.
+        Returns: (normalized_value, normalized_unit)
+        """
+        if not unit:
+            # 단위가 없으면 값의 크기로 추정
+            if value >= 1000000:  # 100만 이상
+                return value / 100, "억원"
+            else:
+                return value, "원"
+
+        # 단위 정규화
+        unit = unit.strip().lower()
+        if "백만원" in unit or "백만" in unit:
+            return value / 100, "억원"  # 백만원 → 억원으로 변환
+        elif "억원" in unit or "억" in unit:
+            return value, "억원"
+        elif "천원" in unit or "천" in unit:
+            return value / 100000, "억원"  # 천원 → 억원으로 변환
+        elif "원" in unit:
+            return value / 100000000, "억원"  # 원 → 억원으로 변환
+        else:
+            # 기본적으로 백만원으로 가정
+            return value / 100, "억원"
+
+    def _validate_and_clean_features(self, features: list, periods: list) -> list:
+        """
+        피처 데이터를 검증하고 정리합니다. 부분 데이터도 허용합니다.
+        """
+        cleaned_features = []
+
+        for feature in features:
+            feature_data = feature.get("data", [])
+            if not feature_data:
+                continue
+
+            period_to_value = {data["period"]: data["value"] for data in feature_data}
+
+            # 최소 2개 기간 중 1개 이상의 데이터가 있으면 허용
+            valid_data_count = sum(1 for period in periods if period_to_value.get(period) is not None)
+
+            if valid_data_count >= 1:  # 최소 1개 기간에 데이터가 있으면 허용
+                # 누락된 데이터는 0으로 채움
+                cleaned_data = []
+                for period in periods:
+                    value = period_to_value.get(period, 0)
+                    cleaned_data.append({"period": period, "value": value})
+
+                cleaned_feature = feature.copy()
+                cleaned_feature["data"] = cleaned_data
+                cleaned_features.append(cleaned_feature)
+
+        return cleaned_features
 
     async def _generate_financial_chart(
         self, corp_code: str, company_name: str, financial_features: dict
@@ -336,27 +417,14 @@ class ReportService:
 
             sorted_periods = sorted(list(all_periods), key=period_sort_key)
 
-            # 유효한 데이터가 있는 피처만 필터링
-            valid_features = []
-            for feature in features:
-                feature_data = feature.get("data", [])
-                period_to_value = {data["period"]: data["value"] for data in feature_data}
-
-                # 모든 기간에 대해 데이터가 있는지 확인
-                has_all_data = all(period_to_value.get(period) is not None for period in sorted_periods)
-                if has_all_data:
-                    valid_features.append(feature)
+            # 데이터 검증 및 정리 (부분 데이터도 허용)
+            valid_features = self._validate_and_clean_features(features, sorted_periods)
 
             if not valid_features:
-                return "<p>모든 기간에 대한 완전한 데이터가 없어 차트를 생성할 수 없습니다.</p>"
+                return "<p>유효한 재무 데이터가 없어 차트를 생성할 수 없습니다.</p>"
 
-            # 전년동기 대비 증감률 계산 여부 결정
-            use_growth_rate = self._should_use_growth_rate(valid_features, sorted_periods)
-
-            if use_growth_rate:
-                chart_data = self._create_growth_rate_chart(company_name, valid_features, sorted_periods)
-            else:
-                chart_data = self._create_absolute_value_chart(company_name, valid_features, sorted_periods)
+            # 듀얼 차트 생성 (막대그래프와 선그래프 토글 가능)
+            chart_data = self._create_dual_chart(company_name, valid_features, sorted_periods)
 
             # 차트 생성 및 저장
             chart_dir = "charts"
@@ -365,8 +433,7 @@ class ReportService:
 
             await generate_chart_html(chart_data, file_path=chart_filepath)
 
-            chart_type = "증감률 막대그래프" if use_growth_rate else "기간별 추이"
-            return f"[{company_name} 손익계산서 동기간 비교 ({chart_type}) 차트 보기]({chart_filepath})"
+            return f"[{company_name} 손익계산서 비교 분석 (토글 차트) 보기]({chart_filepath})"
 
         except Exception as e:
             print(f"재무 차트 생성 실패: {e}")
@@ -486,6 +553,128 @@ class ReportService:
             chart_data["traces"].append({
                 "name": f"{feature_name} ({unit_display})",
                 "y_values": y_values_display,
+                "custom_data": custom_data
+            })
+
+        return chart_data
+
+    def _create_dual_chart(self, company_name: str, features: list, periods: list) -> dict:
+        """
+        막대그래프(증감률)와 선그래프(기간별 비교)를 토글할 수 있는 듀얼 차트 데이터를 생성합니다.
+        """
+        if len(periods) < 2 or not features:
+            return {"chart_type": "line", "x_values": [], "traces": []}
+
+        # 막대그래프 데이터 생성 (증감률)
+        bar_data = self._create_bar_chart_data(company_name, features, periods)
+
+        # 선그래프 데이터 생성 (기간별 비교)
+        line_data = self._create_line_chart_data(company_name, features, periods)
+
+        return {
+            "title": f"{company_name} 손익계산서 비교 분석",
+            "chart_type": "dual",
+            "bar_data": bar_data,
+            "line_data": line_data
+        }
+
+    def _create_bar_chart_data(self, company_name: str, features: list, periods: list) -> dict:
+        """듀얼 차트용 막대그래프 데이터를 생성합니다."""
+        chart_data = {
+            "x_values": [],
+            "traces": []
+        }
+
+        # 지표별 증감률 계산
+        indicator_names = []
+        growth_rates = []
+        base_values = []
+        current_values = []
+
+        for feature in features[:4]:
+            feature_name = feature.get("name", "")
+            period_to_value = {data["period"]: data["value"] for data in feature.get("data", [])}
+
+            # 기준값(이전 기간)과 현재값 계산
+            base_value = period_to_value.get(periods[0], 0)
+            current_value = period_to_value.get(periods[-1], 0)
+
+            if base_value == 0:
+                continue
+
+            growth_rate = ((current_value - base_value) / base_value) * 100
+
+            indicator_names.append(feature_name)
+            growth_rates.append(round(growth_rate, 1))
+            base_values.append(base_value)
+            current_values.append(current_value)
+
+        chart_data["x_values"] = indicator_names
+
+        # 막대그래프용 trace 생성
+        if growth_rates:
+            # 단위 정보도 포함
+            custom_data_with_units = []
+            for i in range(len(growth_rates)):
+                feature = features[i] if i < len(features) else {}
+                unit = feature.get("unit", "백만원")
+
+                custom_data_with_units.append({
+                    "base": base_values[i],
+                    "current": current_values[i],
+                    "growth": growth_rates[i],
+                    "base_period": periods[0],
+                    "current_period": periods[-1],
+                    "unit": unit
+                })
+
+            chart_data["traces"].append({
+                "name": f"{periods[0]} → {periods[-1]} 증감률",
+                "y_values": growth_rates,
+                "custom_data": custom_data_with_units
+            })
+
+        return chart_data
+
+    def _create_line_chart_data(self, company_name: str, features: list, periods: list) -> dict:
+        """듀얼 차트용 선그래프 데이터를 생성합니다."""
+        chart_data = {
+            "x_values": periods,
+            "traces": []
+        }
+
+        for feature in features[:4]:
+            feature_name = feature.get("name", "")
+            unit = feature.get("unit", "")
+            period_to_value = {data["period"]: data["value"] for data in feature.get("data", [])}
+
+            y_values = [period_to_value.get(period, 0) for period in periods]
+
+            # 단위 정규화 적용
+            normalized_values = []
+            original_values = []
+            normalized_unit = "억원"
+
+            for val in y_values:
+                normalized_val, norm_unit = self._normalize_unit_and_value(val, unit)
+                normalized_values.append(normalized_val)
+                original_values.append(val)
+                normalized_unit = norm_unit
+
+            # 호버용 커스텀 데이터 생성
+            custom_data = [
+                {
+                    "original": original_values[i],
+                    "display": normalized_values[i],
+                    "original_unit": unit,
+                    "display_unit": normalized_unit
+                }
+                for i in range(len(normalized_values))
+            ]
+
+            chart_data["traces"].append({
+                "name": f"{feature_name} ({normalized_unit})",
+                "y_values": normalized_values,
                 "custom_data": custom_data
             })
 
