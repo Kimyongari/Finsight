@@ -10,14 +10,14 @@ interface ReportTableProps {
   onClick?: (corp_code: string) => void;
 }
 
-const ReportTable = ({
+export function Table({
   loading,
   error,
   data,
   searchTerm,
   onSearchChange,
   onClick,
-}: ReportTableProps) => {
+}: ReportTableProps) {
   // 로딩 중일 때 표시할 UI
   if (loading) {
     return <div className="p-8 text-center">데이터를 불러오는 중입니다...</div>;
@@ -95,6 +95,4 @@ const ReportTable = ({
       </div>
     </div>
   );
-};
-
-export default ReportTable;
+}

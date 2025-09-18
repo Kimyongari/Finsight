@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { Bubble } from "../components/Bubble.tsx";
 import { useChat } from "../ChatContext.tsx";
 import { FinancialRecord } from "../hooks/useCsvData";
-import Table from "../components/Table.tsx";
+import { Table } from "../components/Table.tsx";
+import { Button } from "../components/Button.tsx";
+
 type Message = {
   id: number;
   type: "question" | "answer";
@@ -135,9 +137,6 @@ function Report({ csvData, isLoading, loadError }: ReportPageProps) {
 
   const hasMessages = messages.length > 0;
 
-  // 업로드된 파일
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-
   return (
     <div className="w-full flex flex-col justify-center items-start min-h-screen bg-white font-sans">
       {hasMessages ? (
@@ -166,13 +165,10 @@ function Report({ csvData, isLoading, loadError }: ReportPageProps) {
           </main>
           <footer className="flex-1 flex-col justify-center items-center bg-white border-t border-gray-200 p-4 fixed bottom-0 left-0 right-0">
             <div className={`${inputContainerClass} mb-3 flex justify-center`}>
-              <button
-                type="button"
+              <Button
+                ButtonText="다른 기업의 보고서 생성하기"
                 onClick={handleNewReport}
-                className="px-4 py-2 border border-gray-300 text-gray-600 text-sm font-bold rounded-lg hover:bg-gray-100 hover:text-black transition-colors duration-200"
-              >
-                다른 기업의 보고서 생성하기
-              </button>
+              />
             </div>
           </footer>
         </>
