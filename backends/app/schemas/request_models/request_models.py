@@ -12,3 +12,6 @@ class ReportRequest(BaseModel):
 
 class KeywordRequest(BaseModel):
     keyword: str
+
+class RegisterRequest(BaseModel):
+    file_name: str

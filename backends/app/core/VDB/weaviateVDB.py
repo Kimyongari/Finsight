@@ -64,6 +64,14 @@ class VectorDB:
             print('네이버클라우드 임베딩 모델 호출에 실패했습니다. 접속정보를 확인하세요.')
             print('err_msg:', test['err_msg'])
             raise Exception
+        
+    def check(self, name:str):
+        collection = self.client.collections.get(name)
+        if collection.exists():
+            self.collection = collection
+            return True
+        else:
+            return False
 
 # VDB에 존재하는 collection을 모두 삭제합니다. (사용주의)
     def reset(self):
