@@ -174,6 +174,8 @@ class VectorDB:
                             break
                         if batch.number_errors != 0:
                             print('몇몇 chunk가 적재에 실패하였지만 그 수가 10을 넘지 않아 제외하고 적재되었습니다.')
+            else:
+                print('Legal_DB collection이 weaviate VDB 내에 존재하지 않습니다.')
         else:
             raise ValueError("Collection이 지정되지 않았습니다. set_collection()으로 먼저 설정하세요.")
 
