@@ -250,6 +250,247 @@ class ReportService:
 
         return final_selection
 
+    async def _extract_financial_features(self, financial_statement: str) -> dict:
+        """
+        LLM을 사용하여 재무제표에서 유의미한 피처를 추출합니다.
+        """
+        feature_extraction_prompt = """
+        당신은 재무 분석 전문가입니다. 주어진 재무제표에서 손익계산서의 누적 데이터만을 사용하여 동기간 비교 차트를 생성하기 위한 지표를 추출해주세요.
+
+        **핵심 지시사항:**
+        1. **손익계산서의 "누적" 컬럼 데이터만 선택**: 3개월, 분기별 데이터는 제외하고 오직 누적 데이터만 사용
+        2. **동일 기간 비교**: 전년 동기간과 올해 동기간의 누적 실적만 비교
+           - 예: "제 56 기 반기 누적" vs "제 57 기 반기 누적"
+           - 예: "제 55 기 누적" vs "제 56 기 누적"
+        3. **재무상태표 데이터 제외**: 자산총계, 자본총계 등 재무상태표 항목은 선택하지 마세요.
+        4. **손익 지표만 선택**: 매출액, 매출총이익, 영업이익, 당기순이익 등 손익계산서 항목만 선택
+        5. **최대 4개 지표**: 규모가 비슷하고 의미 있는 비교가 가능한 지표들로 제한
+        6. **X축 라벨 통일**: 모든 기간 표기를 "제 N기 반기" 형식으로 통일 (누적은 생략)
+
+        **선택 우선순위:**
+        1순위: 매출액
+        2순위: 영업이익
+        3순위: 당기순이익
+        4순위: 매출총이익 또는 영업활동현금흐름
+
+        **출력 형식:**
+        {
+            "features": [
+                {
+                    "name": "매출액",
+                    "category": "성장성",
+                    "unit": "백만원",
+                    "data": [
+                        {"period": "제 56기 반기", "value": 104973735},
+                        {"period": "제 57기 반기", "value": 110300265}
+                    ]
+                }
+            ]
+        }
+        """
+
+        try:
+            response = await self.llm.acall(
+                system_prompt=feature_extraction_prompt, user_input=financial_statement
+            )
+
+            result = self._extract_json_from_response(response, "object")
+            if result and "features" in result:
+                return result
+            else:
+                return {"features": []}
+        except Exception as e:
+            print(f"재무 피처 추출 실패: {e}")
+            return {"features": []}
+
+    async def _generate_financial_chart(
+        self, corp_code: str, company_name: str, financial_features: dict
+    ) -> str:
+        """
+        재무 피처를 사용하여 chart_generator를 호출하여 차트 HTML 파일을 생성한 후,
+        마크다운 보고서에 삽입할 링크를 반환합니다.
+        """
+        try:
+            features = financial_features.get("features", [])
+            if not features or len(features) == 0:
+                return "<p>재무 데이터 차트를 생성할 데이터가 없습니다.</p>"
+
+            # 모든 피처에서 공통 기간 추출 및 검증
+            all_periods = set()
+            for feature in features:
+                for data_point in feature.get("data", []):
+                    all_periods.add(data_point.get("period", ""))
+
+            if len(all_periods) < 2:
+                return "<p>비교할 기간이 부족하여 차트를 생성할 수 없습니다.</p>"
+
+            # 기간을 정렬 (연도순으로 정렬)
+            def period_sort_key(period):
+                try:
+                    parts = period.split()
+                    if len(parts) >= 2 and parts[1].replace('기', '').isdigit():
+                        return int(parts[1].replace('기', ''))
+                    return 0
+                except:
+                    return 0
+
+            sorted_periods = sorted(list(all_periods), key=period_sort_key)
+
+            # 유효한 데이터가 있는 피처만 필터링
+            valid_features = []
+            for feature in features:
+                feature_data = feature.get("data", [])
+                period_to_value = {data["period"]: data["value"] for data in feature_data}
+
+                # 모든 기간에 대해 데이터가 있는지 확인
+                has_all_data = all(period_to_value.get(period) is not None for period in sorted_periods)
+                if has_all_data:
+                    valid_features.append(feature)
+
+            if not valid_features:
+                return "<p>모든 기간에 대한 완전한 데이터가 없어 차트를 생성할 수 없습니다.</p>"
+
+            # 전년동기 대비 증감률 계산 여부 결정
+            use_growth_rate = self._should_use_growth_rate(valid_features, sorted_periods)
+
+            if use_growth_rate:
+                chart_data = self._create_growth_rate_chart(company_name, valid_features, sorted_periods)
+            else:
+                chart_data = self._create_absolute_value_chart(company_name, valid_features, sorted_periods)
+
+            # 차트 생성 및 저장
+            chart_dir = "charts"
+            os.makedirs(chart_dir, exist_ok=True)
+            chart_filepath = os.path.join(chart_dir, f"{corp_code}_chart2.html")
+
+            await generate_chart_html(chart_data, file_path=chart_filepath)
+
+            chart_type = "증감률 막대그래프" if use_growth_rate else "기간별 추이"
+            return f"[{company_name} 손익계산서 동기간 비교 ({chart_type}) 차트 보기]({chart_filepath})"
+
+        except Exception as e:
+            print(f"재무 차트 생성 실패: {e}")
+            return "<p>재무 데이터 차트를 생성하는 데 실패했습니다.</p>"
+
+    def _should_use_growth_rate(self, features: list, periods: list) -> bool:
+        """
+        스케일 차이가 클 경우 증감률 차트를 사용할지 결정합니다.
+        """
+        if len(features) < 2 or len(periods) < 2:
+            return False
+
+        try:
+            # 각 피처의 최댓값 수집
+            max_values = []
+            for feature in features:
+                period_to_value = {data["period"]: data["value"] for data in feature.get("data", [])}
+                values = [period_to_value.get(period, 0) for period in periods]
+                max_values.append(max(values))
+
+            # 최댓값들 간의 비율 차이 계산
+            if min(max_values) > 0:
+                ratio = max(max_values) / min(max_values)
+                return ratio > 10  # 10배 이상 차이나면 증감률 사용
+            return False
+        except:
+            return False
+
+    def _create_growth_rate_chart(self, company_name: str, features: list, periods: list) -> dict:
+        """
+        전년동기 대비 증감률을 막대그래프로 시각화합니다.
+        X축: 지표명, Y축: 증감률(%)
+        """
+        if len(periods) < 2:
+            return self._create_absolute_value_chart(company_name, features, periods)
+
+        chart_data = {
+            "title": f"{company_name} 손익계산서 전년동기 대비 증감률",
+            "x_values": [],
+            "traces": [],
+            "chart_type": "bar"
+        }
+
+        # 지표별 증감률 계산
+        indicator_names = []
+        growth_rates = []
+        base_values = []
+        current_values = []
+
+        for feature in features[:4]:
+            feature_name = feature.get("name", "")
+            period_to_value = {data["period"]: data["value"] for data in feature.get("data", [])}
+
+            # 기준값(이전 기간)과 현재값 계산
+            base_value = period_to_value.get(periods[0], 0)
+            current_value = period_to_value.get(periods[-1], 0)
+
+            if base_value == 0:
+                continue
+
+            growth_rate = ((current_value - base_value) / base_value) * 100
+
+            indicator_names.append(feature_name)
+            growth_rates.append(round(growth_rate, 1))
+            base_values.append(base_value)
+            current_values.append(current_value)
+
+        chart_data["x_values"] = indicator_names
+
+        # 막대그래프용 trace 생성
+        chart_data["traces"].append({
+            "name": f"{periods[0]} → {periods[-1]} 증감률",
+            "y_values": growth_rates,
+            "custom_data": [
+                {
+                    "base": base_values[i],
+                    "current": current_values[i],
+                    "growth": growth_rates[i],
+                    "base_period": periods[0],
+                    "current_period": periods[-1]
+                }
+                for i in range(len(growth_rates))
+            ]
+        })
+
+        return chart_data
+
+    def _create_absolute_value_chart(self, company_name: str, features: list, periods: list) -> dict:
+        """
+        절댓값 차트 데이터를 생성합니다.
+        각 지표별로 두 기간의 값을 선그래프로 연결하여 변화를 명확히 보여줍니다.
+        """
+        chart_data = {
+            "title": f"{company_name} 손익계산서 주요 지표 기간별 비교",
+            "x_values": periods,
+            "traces": [],
+            "chart_type": "line"
+        }
+
+        for feature in features[:4]:
+            feature_name = feature.get("name", "")
+            unit = feature.get("unit", "")
+            period_to_value = {data["period"]: data["value"] for data in feature.get("data", [])}
+
+            y_values = [period_to_value.get(period, 0) for period in periods]
+
+            # 단위를 억원으로 변환하여 가독성 향상
+            if unit == "백만원":
+                y_values_display = [val / 100 for val in y_values]
+                unit_display = "억원"
+                custom_data = [{"original": y_values[i], "display": y_values_display[i]} for i in range(len(y_values))]
+            else:
+                y_values_display = y_values
+                unit_display = unit
+                custom_data = y_values
+
+            chart_data["traces"].append({
+                "name": f"{feature_name} ({unit_display})",
+                "y_values": y_values_display,
+                "custom_data": custom_data
+            })
+
+        return chart_data
+
     async def _generate_stock_chart(
         self, corp_code: str, stock_code: str, stock_name: str
     ) -> str:
@@ -371,10 +612,16 @@ class ReportService:
             corp_code=corp_code
         )
 
-        # 4. 차트 생성 결과 기다리기
-        stock_chart_html = await stock_chart_task
+        # 4. 재무제표 피처 추출 및 차트 2 생성
+        financial_features = await self._extract_financial_features(financial_statement)
+        financial_chart_task = self._generate_financial_chart(corp_code, company_name, financial_features)
 
-        # 5. LLM을 이용한 종합 결론 생성
+        # 5. 차트 생성 결과 기다리기
+        stock_chart_html, financial_chart_html = await asyncio.gather(
+            stock_chart_task, financial_chart_task
+        )
+
+        # 6. LLM을 이용한 종합 결론 생성
         company_info_for_prompt = self._format_company_info(company_info_dict)
 
         conclusion_prompt = f"""
@@ -413,7 +660,7 @@ class ReportService:
             conclusion_prompt, conclusion_context
         )
 
-        # 6. 최종 마크다운 보고서 조립
+        # 7. 최종 마크다운 보고서 조립
         report = f"""
 # {company_name} 기업 분석 보고서
 
@@ -424,7 +671,11 @@ class ReportService:
 {financial_statement}
 
 ## III. 핵심 투자지표 분석
+### 주가 성과 비교
 {stock_chart_html}
+
+### 손익계산서 동기간 비교
+{financial_chart_html}
 
 ## IV. 최근 주요 소식
 {recent_news_summary}
