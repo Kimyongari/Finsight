@@ -1,9 +1,10 @@
 // Chatbot.tsx
 import { useState, useEffect, useRef } from "react";
 
-import FileUploader from "../components/FileUploader.tsx";
 import { ChatForm } from "../components/ChatForm.tsx";
 import { Bubble } from "../components/Bubble.tsx";
+import { Button } from "../components/Button.tsx";
+import { Modal } from "../components/Modal.tsx";
 
 // 메시지 타입 정의
 type Message = {
@@ -151,10 +152,49 @@ function Chatbot() {
     }
   };
 
-  const handleNewReport = () => {
-    setMessages([]);
+  // 모달 관련 상태
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleOpenModal = () => {
+    setCurrentStep(1);
+    setIsModalOpen(true);
+  };
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    // 모달을 다시 열 때 항상 1단계부터 시작하도록 초기화
+    setTimeout(() => {
+      setCurrentStep(1);
+    }, 300); // 모달 닫기 애니메이션 시간 고려
   };
 
+  // Stepper를 위한 상태
+  const [currentStep, setCurrentStep] = useState(1);
+  const [totalUploadedFiles, settotalUploadedFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]); // 업로드된 파일들
+  // 1단계 -> 2단계로 넘어가는 함수
+  const handleUploadSuccess = (newFiles: File[]) => {
+    settotalUploadedFiles((prevFiles) => [...prevFiles, ...newFiles]); // 모달 창 끄고 새로 업로드 시 누적
+    setUploadedFiles(newFiles); // 추가로 업로드된 파일들 상태 업데이트
+    setCurrentStep(2);
+  };
+
+  // 2단계 -> 3단계로 넘어가는 함수
+  const handleTriggerSuccess = () => {
+    setCurrentStep(3);
+  };
+
+  // 모달 렌더링
+  const renderModal = () => (
+    <Modal
+      currentStep={currentStep}
+      uploadedFiles={uploadedFiles}
+      onClose={handleCloseModal}
+      onUploadSuccess={handleUploadSuccess}
+      onTriggerSuccess={handleTriggerSuccess}
+    />
+  );
+
+  // 챗팅 창 렌더링
   const renderChatForm = () => (
     <ChatForm
       inputContainerClass={inputContainerClass}
@@ -172,9 +212,6 @@ function Chatbot() {
   );
 
   const hasMessages = messages.length > 0;
-
-  // 파일 업로드 관련
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
   return (
     <div className="w-full flex flex-col justify-center items-center h-screen bg-white font-sans">
@@ -211,10 +248,20 @@ function Chatbot() {
             <h1 className="text-4xl font-bold text-gray-800">금융 자문 챗봇</h1>
             <p className="text-gray-500 mt-2">CorpAdvisor</p>
           </header>
-          <FileUploader
-            uploadedFiles={uploadedFiles}
-            setUploadedFiles={setUploadedFiles}
-          />
+          <div>
+            {totalUploadedFiles.length > 0 ? (
+              <p className="text-gray-600">
+                {totalUploadedFiles.length}개의 파일이 업로드되었습니다.
+              </p>
+            ) : (
+              <p className="text-gray-600">업로드된 파일이 없습니다.</p>
+            )}
+          </div>
+          <Button
+            ButtonText="다른 데이터 업로드"
+            onClick={handleOpenModal}
+          ></Button>
+          {isModalOpen && renderModal()}
           <div className="w-full">{renderChatForm()}</div>
         </div>
       )}
