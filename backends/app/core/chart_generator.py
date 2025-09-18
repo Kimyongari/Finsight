@@ -75,6 +75,25 @@ async def generate_chart_html(chart_data: dict, file_path: str) -> None:
             "xaxis_title": "재무 지표"
         }
 
+    elif chart_type == "profitability":
+        # 수익성 차트 로직
+        x_values = chart_data.get("x_values", [])
+        traces = chart_data.get("traces", [])
+
+        for trace in traces:
+            trace_name = trace.get("name", "")
+            y_values = trace.get("y_values", [])
+            custom_data = trace.get("custom_data", [])
+            _add_profitability_line_trace(fig, x_values, trace_name, y_values, custom_data)
+
+        # 수익성 차트 전용 레이아웃 설정
+        layout_updates = {
+            "title_text": title,
+            "legend_title_text": "수익성 지표",
+            "yaxis_title": "이익률 (%)",
+            "xaxis_title": "기간"
+        }
+
     else:
         # 기존 단일 차트 로직
         x_values = chart_data.get("x_values", [])
@@ -246,6 +265,39 @@ def _add_single_line_trace(fig: go.Figure, x_values: list, trace_name: str, y_va
             "<b>%{fullData.name}</b><br>"
             + "날짜: %{x}<br>"
             + "실제 값: %{customdata:,.0f}<extra></extra>"
+        )
+
+    fig.add_trace(
+        go.Scatter(
+            x=x_values,
+            y=y_values,
+            customdata=custom_data,
+            mode="lines+markers",
+            name=trace_name,
+            hovertemplate=hovertemplate,
+        )
+    )
+
+
+def _add_profitability_line_trace(fig: go.Figure, x_values: list, trace_name: str, y_values: list, custom_data: list):
+    """수익성 지표 선그래프 trace를 추가합니다."""
+    if isinstance(custom_data, list) and len(custom_data) > 0 and isinstance(custom_data[0], dict):
+        # 수익성 지표 전용 호버 템플릿
+        hovertemplate = (
+            "<b>%{fullData.name}</b><br>"
+            + "기간: %{x}<br>"
+            + "비율: %{y:.1f}%<br>"
+            + "매출액: %{customdata.revenue:,.0f} 백만원<br>"
+            + "해당 이익: %{customdata.profit:,.0f} 백만원<br>"
+            + "<extra></extra>"
+        )
+    else:
+        # 기본 호버 템플릿
+        hovertemplate = (
+            "<b>%{fullData.name}</b><br>"
+            + "기간: %{x}<br>"
+            + "비율: %{y:.1f}%<br>"
+            + "<extra></extra>"
         )
 
     fig.add_trace(
