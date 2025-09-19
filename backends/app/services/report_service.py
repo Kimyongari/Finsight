@@ -329,6 +329,157 @@ class ReportService:
             print(f"재무 피처 추출 실패: {e}")
             return {"features": []}
 
+    async def _extract_profitability_ratios(self, financial_statement: str) -> dict:
+        """
+        재무제표에서 수익성 지표를 추출하고 비율을 계산합니다.
+        """
+        profitability_extraction_prompt = """
+        당신은 재무 분석 전문가입니다. 주어진 재무제표에서 수익성 지표 계산을 위한 손익계산서 데이터를 추출해주세요.
+
+        **핵심 지시사항:**
+        1. **실제 기간 정확 추출**: 재무제표에 나타난 실제 기수를 정확히 읽어서 사용하세요.
+        2. **기간 표기 형식**: 기간을 "제 N기 반기" 또는 "제 N기" 형식으로 출력하세요. (예: "제 56기 반기", "제 57기")
+        3. **손익계산서의 "누적" 컬럼 데이터만 선택**: 3개월, 분기별 데이터는 제외하고 오직 누적 데이터만 사용
+        4. **동일 기간 비교**: 전년 동기간과 올해 동기간의 누적 실적만 비교 (반기면 반기끼리, 기말이면 기말끼리)
+        5. **필수 지표 추출**: 다음 4개 지표를 반드시 추출해야 합니다:
+           - 매출액 (분모로 사용)
+           - 매출총이익 (매출액 - 매출원가)
+           - 영업이익
+           - 순이익 (당기순이익, 반기순이익 등 최종 순이익)
+
+        **지표명 사용 절대 원칙:**
+        **⚠️ 중요: 재무제표에 나타난 지표 명칭을 그대로 사용하세요. 임의로 매핑하거나 변경하면 안 됩니다.**
+        - 재무제표에 "당기순이익"이라고 되어있으면 "당기순이익"으로 사용
+        - 재무제표에 "매출액"이라고 되어있으면 "매출액"으로 사용
+        - 절대로 다른 지표명으로 바꾸지 마세요
+
+        **단위 추출 주의사항:**
+        - 재무제표 상단의 "(단위 : 백만원)" 등의 표기를 찾아서 정확히 기록
+        - 만약 단위 표기가 없으면 숫자 크기를 보고 추정
+
+        **JSON 출력 형식:**
+        {
+            "profitability_data": [
+                {
+                    "period": "제 N기 반기",
+                    "revenue": 매출액_값,
+                    "gross_profit": 매출총이익_값,
+                    "operating_profit": 영업이익_값,
+                    "net_profit": 순이익_값,
+                    "revenue_name": "재무제표의_실제_매출액_명칭",
+                    "gross_profit_name": "재무제표의_실제_매출총이익_명칭",
+                    "operating_profit_name": "재무제표의_실제_영업이익_명칭",
+                    "net_profit_name": "재무제표의_실제_순이익_명칭"
+                },
+                {
+                    "period": "제 M기 반기",
+                    "revenue": 매출액_값,
+                    "gross_profit": 매출총이익_값,
+                    "operating_profit": 영업이익_값,
+                    "net_profit": 순이익_값,
+                    "revenue_name": "재무제표의_실제_매출액_명칭",
+                    "gross_profit_name": "재무제표의_실제_매출총이익_명칭",
+                    "operating_profit_name": "재무제표의_실제_영업이익_명칭",
+                    "net_profit_name": "재무제표의_실제_순이익_명칭"
+                }
+            ],
+            "unit": "실제_추출된_단위"
+        }
+
+        **중요**:
+        - 반드시 재무제표에 나타난 실제 기간, 단위, 지표명을 그대로 사용하되, 기간은 "제 N기 반기" 형식으로 변환하세요.
+        - 날짜 형태(예: 2024.01.01 ~ 2024.06.30)가 아닌 반기 형태로 출력하세요.
+        """
+
+        try:
+            response = await self.llm.acall(
+                system_prompt=profitability_extraction_prompt, user_input=financial_statement
+            )
+
+            result = self._extract_json_from_response(response, "object")
+            if result and "profitability_data" in result:
+                # 수익성 비율 계산
+                calculated_ratios = self._calculate_profitability_ratios(result)
+                return calculated_ratios
+            else:
+                return {"profitability_ratios": []}
+        except Exception as e:
+            print(f"수익성 지표 추출 실패: {e}")
+            return {"profitability_ratios": []}
+
+    def _calculate_profitability_ratios(self, profitability_data: dict) -> dict:
+        """
+        추출된 재무 데이터를 기반으로 수익성 비율을 계산합니다.
+        """
+        try:
+            data_list = profitability_data.get("profitability_data", [])
+            unit = profitability_data.get("unit", "백만원")
+
+            if not data_list:
+                return {"profitability_ratios": []}
+
+            calculated_ratios = []
+
+            for data in data_list:
+                period = data.get("period", "")
+                revenue = data.get("revenue", 0)
+                gross_profit = data.get("gross_profit", 0)
+                operating_profit = data.get("operating_profit", 0)
+                net_profit = data.get("net_profit", 0)
+
+                # 실제 지표명 가져오기
+                gross_profit_name = data.get("gross_profit_name", "매출총이익")
+                operating_profit_name = data.get("operating_profit_name", "영업이익")
+                net_profit_name = data.get("net_profit_name", "순이익")
+
+                if revenue == 0:
+                    # 매출액이 0이면 비율 계산 불가
+                    calculated_ratios.append({
+                        "period": period,
+                        "gross_profit_ratio": 0,
+                        "operating_profit_ratio": 0,
+                        "net_profit_ratio": 0,
+                        "gross_profit_name": gross_profit_name,
+                        "operating_profit_name": operating_profit_name,
+                        "net_profit_name": net_profit_name,
+                        "raw_data": {
+                            "revenue": revenue,
+                            "gross_profit": gross_profit,
+                            "operating_profit": operating_profit,
+                            "net_profit": net_profit
+                        }
+                    })
+                else:
+                    # 수익성 비율 계산 (%, 소수점 1자리)
+                    gross_profit_ratio = round((gross_profit / revenue) * 100, 1)
+                    operating_profit_ratio = round((operating_profit / revenue) * 100, 1)
+                    net_profit_ratio = round((net_profit / revenue) * 100, 1)
+
+                    calculated_ratios.append({
+                        "period": period,
+                        "gross_profit_ratio": gross_profit_ratio,
+                        "operating_profit_ratio": operating_profit_ratio,
+                        "net_profit_ratio": net_profit_ratio,
+                        "gross_profit_name": gross_profit_name,
+                        "operating_profit_name": operating_profit_name,
+                        "net_profit_name": net_profit_name,
+                        "raw_data": {
+                            "revenue": revenue,
+                            "gross_profit": gross_profit,
+                            "operating_profit": operating_profit,
+                            "net_profit": net_profit
+                        }
+                    })
+
+            return {
+                "profitability_ratios": calculated_ratios,
+                "unit": unit
+            }
+
+        except Exception as e:
+            print(f"수익성 비율 계산 실패: {e}")
+            return {"profitability_ratios": []}
+
     def _normalize_unit_and_value(self, value: float, unit: str) -> tuple:
         """
         단위와 값을 정규화하여 일관된 형태로 변환합니다.
@@ -438,6 +589,136 @@ class ReportService:
         except Exception as e:
             print(f"재무 차트 생성 실패: {e}")
             return "<p>재무 데이터 차트를 생성하는 데 실패했습니다.</p>"
+
+    async def _generate_profitability_chart(
+        self, corp_code: str, company_name: str, profitability_data: dict
+    ) -> str:
+        """
+        수익성 비율 데이터를 사용하여 chart_generator를 호출하여 차트 HTML 파일을 생성한 후,
+        마크다운 보고서에 삽입할 링크를 반환합니다.
+        """
+        try:
+            ratios = profitability_data.get("profitability_ratios", [])
+            if not ratios or len(ratios) == 0:
+                return "<p>수익성 지표 차트를 생성할 데이터가 없습니다.</p>"
+
+            # 모든 비율에서 공통 기간 추출
+            all_periods = set()
+            for ratio in ratios:
+                all_periods.add(ratio.get("period", ""))
+
+            if len(all_periods) < 2:
+                return "<p>비교할 기간이 부족하여 수익성 차트를 생성할 수 없습니다.</p>"
+
+            # 기간을 정렬 (과거→현재 순으로 정렬)
+            def period_sort_key(period):
+                try:
+                    parts = period.split()
+                    if len(parts) >= 2 and parts[1].replace('기', '').isdigit():
+                        return int(parts[1].replace('기', ''))
+                    # 날짜 형태인 경우 처리
+                    elif '~' in period:
+                        # "2024.01.01 ~ 2024.06.30" 형태에서 연도 추출
+                        year_part = period.split('~')[0].strip().split('.')[0]
+                        return int(year_part) if year_part.isdigit() else 0
+                    return 0
+                except:
+                    return 0
+
+            sorted_periods = sorted(list(all_periods), key=period_sort_key)
+
+            # 수익성 차트 데이터 생성
+            chart_data = self._create_profitability_chart_data(company_name, ratios, sorted_periods)
+
+            # 차트 생성 및 저장
+            chart_dir = "charts"
+            os.makedirs(chart_dir, exist_ok=True)
+            chart_filepath = os.path.join(chart_dir, f"{corp_code}_chart3.html")
+
+            await generate_chart_html(chart_data, file_path=chart_filepath)
+
+            return f"[{company_name} 수익성 지표 추이 분석 보기]({chart_filepath})"
+
+        except Exception as e:
+            print(f"수익성 차트 생성 실패: {e}")
+            return "<p>수익성 지표 차트를 생성하는 데 실패했습니다.</p>"
+
+    def _create_profitability_chart_data(self, company_name: str, ratios: list, periods: list) -> dict:
+        """
+        수익성 비율 데이터를 꺾은선 그래프 형태로 변환합니다.
+        """
+        chart_data = {
+            "title": f"{company_name} 수익성 지표 추이",
+            "x_values": periods,
+            "traces": [],
+            "chart_type": "profitability"
+        }
+
+        # 기간별 데이터를 정리
+        period_to_data = {}
+        indicator_names = {}
+
+        for ratio in ratios:
+            period = ratio.get("period", "")
+            if period in periods:
+                period_to_data[period] = {
+                    "gross_profit_ratio": ratio.get("gross_profit_ratio", 0),
+                    "operating_profit_ratio": ratio.get("operating_profit_ratio", 0),
+                    "net_profit_ratio": ratio.get("net_profit_ratio", 0),
+                    "raw_data": ratio.get("raw_data", {})
+                }
+                # 실제 지표명 저장 (첫 번째 데이터에서)
+                if not indicator_names:
+                    indicator_names = {
+                        "gross_profit_name": ratio.get("gross_profit_name", "매출총이익"),
+                        "operating_profit_name": ratio.get("operating_profit_name", "영업이익"),
+                        "net_profit_name": ratio.get("net_profit_name", "순이익")
+                    }
+
+        # 3개의 수익성 지표별로 trace 생성
+        indicators = [
+            {
+                "key": "gross_profit_ratio",
+                "name": f"{indicator_names.get('gross_profit_name', '매출총이익')}률",
+                "color_hint": "gross_profit"
+            },
+            {
+                "key": "operating_profit_ratio",
+                "name": f"{indicator_names.get('operating_profit_name', '영업이익')}률",
+                "color_hint": "operating_profit"
+            },
+            {
+                "key": "net_profit_ratio",
+                "name": f"{indicator_names.get('net_profit_name', '순이익')}률",
+                "color_hint": "net_profit"
+            }
+        ]
+
+        for indicator in indicators:
+            y_values = []
+            custom_data = []
+
+            for period in periods:
+                period_data = period_to_data.get(period, {})
+                ratio_value = period_data.get(indicator["key"], 0)
+                raw_data = period_data.get("raw_data", {})
+
+                y_values.append(ratio_value)
+                custom_data.append({
+                    "ratio": ratio_value,
+                    "period": period,
+                    "revenue": raw_data.get("revenue", 0),
+                    "profit": raw_data.get(indicator["key"].replace("_ratio", ""), 0),
+                    "indicator_name": indicator["name"]
+                })
+
+            chart_data["traces"].append({
+                "name": f"{indicator['name']} (%)",
+                "y_values": y_values,
+                "custom_data": custom_data
+            })
+
+        return chart_data
 
     def _should_use_growth_rate(self, features: list, periods: list) -> bool:
         """
@@ -805,9 +1086,13 @@ class ReportService:
         financial_features = await self._extract_financial_features(financial_statement)
         financial_chart_task = self._generate_financial_chart(corp_code, company_name, financial_features)
 
-        # 5. 차트 생성 결과 기다리기
-        stock_chart_html, financial_chart_html = await asyncio.gather(
-            stock_chart_task, financial_chart_task
+        # 5. 수익성 지표 추출 및 차트 3 생성
+        profitability_ratios = await self._extract_profitability_ratios(financial_statement)
+        profitability_chart_task = self._generate_profitability_chart(corp_code, company_name, profitability_ratios)
+
+        # 6. 차트 생성 결과 기다리기
+        stock_chart_html, financial_chart_html, profitability_chart_html = await asyncio.gather(
+            stock_chart_task, financial_chart_task, profitability_chart_task
         )
 
         # 6. LLM을 이용한 종합 결론 생성
@@ -865,6 +1150,9 @@ class ReportService:
 
 ### 손익계산서 동기간 비교
 {financial_chart_html}
+
+### 수익성 지표 추이 분석
+{profitability_chart_html}
 
 ## IV. 최근 주요 소식
 {recent_news_summary}

@@ -46,6 +46,7 @@ class RagService:
 
     def generate_answer(self, query:str) -> dict:
         result = self.retriever(query = query, topk = 4)
+        print(result)
         if result['success']:
             retrieved_documents = result['data']
             context = "\n\n".join([doc['text'] for doc in retrieved_documents])
@@ -89,6 +90,21 @@ class RagService:
         try:
             paths = glob('./pdfs/*.pdf')
             self.vdb.reset()
+            properties=[
+                Property(name="text", data_type=DataType.TEXT),
+                Property(name="n_char", data_type=DataType.INT),
+                Property(name="n_word", data_type=DataType.INT),
+                Property(name="i_page", data_type=DataType.INT),
+                Property(name="i_chunk_on_page", data_type=DataType.INT),
+                Property(name="n_chunk_of_page", data_type=DataType.INT),
+                Property(name="i_chunk_on_doc", data_type=DataType.INT),
+                Property(name="n_chunk_of_doc", data_type=DataType.INT),
+                Property(name="n_page", data_type=DataType.INT),
+                Property(name="name", data_type=DataType.TEXT),
+                Property(name="file_path", data_type=DataType.TEXT)
+            ]
+            self.vdb.create_collection(name = 'LegalDB', properties=properties)
+            self.vdb.set_collection('LegalDB')
             processor = DocumentProcessor()
             all_chunks = []
             for path in paths:
@@ -105,7 +121,6 @@ class RagService:
                         'n_page' : chunk.n_page,
                         'name' : chunk.name,
                         'file_path' : chunk.file_path } for chunk in all_chunks]
-            
             self.vdb.add_objects(objects = objects)
             return {'success' : True}
         

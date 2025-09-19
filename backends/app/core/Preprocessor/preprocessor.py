@@ -163,6 +163,7 @@ class DocumentProcessor:
                             else:
                                 chunk_with_title = f'[{self.legal_name}] [{chapter}] [{section}] {chunk_text}'
                             name = self.legal_name+current_article_title
+                            name = name.replace(' ','')
                             vectors.append(VectorMeta.model_validate({
                                 'text': chunk_with_title,
                                 'n_char': len(chunk_text),

@@ -3,6 +3,8 @@ import os
 from urllib.parse import urlparse
 from weaviate.classes.init import AdditionalConfig, Timeout
 from weaviate.classes.config import Property, DataType
+from weaviate.classes.query import Filter
+
 from .navercloud_embedding import NaverCloudEmbeddings
 from tqdm import tqdm
 
@@ -13,7 +15,10 @@ class VectorDB:
         self.client = None
         self.collection = None
         try:
-            weaviate_url = os.getenv("WEAVIATE_URL")
+            if url:
+                weaviate_url = url
+            else:
+                weaviate_url = os.getenv("WEAVIATE_URL")
             if weaviate_url:
                 parsed_url = urlparse(weaviate_url)
                 http_host = parsed_url.hostname
@@ -174,6 +179,8 @@ class VectorDB:
                             break
                         if batch.number_errors != 0:
                             print('몇몇 chunk가 적재에 실패하였지만 그 수가 10을 넘지 않아 제외하고 적재되었습니다.')
+            else:
+                print('Legal_DB collection이 weaviate VDB 내에 존재하지 않습니다.')
         else:
             raise ValueError("Collection이 지정되지 않았습니다. set_collection()으로 먼저 설정하세요.")
 
@@ -218,6 +225,29 @@ class VectorDB:
                 alpha = alpha,
                 query_properties = query_fields,
                 limit = topk
+            )
+            results = [i.properties for i in results.objects]
+        else:
+            raise ValueError("Collection이 지정되지 않았습니다. set_collection()으로 먼저 설정하세요.")
+        return results
+    
+# 참조 조항 검색을 위한 query입니다.
+# 참조조항을 받아 collection의 metadata중 name이 입력받은 참조 조항과 같다면 해당 object를 return합니다.
+    def query_hybrid_with_filter(self, name: str, fields:list = None, alpha: float = 0.5) -> dict:
+        """
+        collection의 metadata.name == name 인 object 검색
+        """
+        if getattr(self.collection, 'exists', None):
+            query = 'dummy'
+            query_fields = fields if fields else ['text']
+            vector = self.embedding_model.embed_query(query)['embedding']
+            results = self.collection.query.hybrid(
+                query = query,
+                vector = vector,
+                alpha = alpha,
+                query_properties = query_fields,
+                limit = 1,
+                filters=Filter.by_property("name").equal(name),
             )
             results = [i.properties for i in results.objects]
         else:

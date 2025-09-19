@@ -4,15 +4,10 @@ from langchain.schema.messages import HumanMessage, SystemMessage
 from app.core.llm.llm import Midm
 from app.core.VDB.weaviateVDB import VectorDB
 from dotenv import load_dotenv
-from pydantic import BaseModel
-
-class rag_state(BaseModel):
-    user_question: str
-    retrieved_documents :list[dict]
-    answer : str
+from app.schemas.langraph_states.state_models import vanilla_rag_state
 
 
-class rag_workflow:
+class vanilla_rag_workflow:
     def __init__(self):
         load_dotenv()
         self.llm = Midm()
@@ -20,12 +15,12 @@ class rag_workflow:
         self.vdb.set_collection('LegalDB')
         self.workflow = self.setup()
 
-    def retriever(self, state: rag_state, topk=4, alpha = 0.5) -> rag_state:
+    def retriever(self, state: vanilla_rag_state, topk=4, alpha = 0.5) -> vanilla_rag_state:
         question = state.user_question
         retrieved_documents = self.vdb.query_hybrid(query = question, topk = topk, alpha = alpha)
         return {'retrieved_documents' : retrieved_documents}
     
-    def generation(self, state: rag_state) -> rag_state:
+    def generation(self, state: vanilla_rag_state) -> vanilla_rag_state:
         question = state.user_question
         retrieved_documents = state.retrieved_documents
         contexts = "\n\n".join([doc['text'] for doc in retrieved_documents])
@@ -61,7 +56,7 @@ class rag_workflow:
 
         return {'answer' : answer}
     def setup(self):
-        workflow = StateGraph(rag_state)
+        workflow = StateGraph(vanilla_rag_state)
         workflow.add_node(self.retriever, "retriever")
         workflow.add_node(self.generation, "generation")
         workflow.add_edge(START, "retriever")
@@ -71,6 +66,6 @@ class rag_workflow:
         return workflow
 
     def run(self, question):
-        input = rag_state(user_question=question, retrieved_documents=[{}], answer='')
+        input = vanilla_rag_state(user_question=question, retrieved_documents=[{}], answer='')
         result = self.workflow.invoke(input=input)
         return result
