@@ -1,8 +1,22 @@
 import "../App.css";
+import { useEffect } from "react";
+import axios from "axios";
 import { useMediaQuery } from "react-responsive";
 import { RouterButton } from "../components/RouterButton";
 
 function Home() {
+  // weviate 초기화 요청
+  useEffect(() => {
+    // 컴포넌트가 처음 마운트될 때 GET 요청
+    axios
+      .get("http://localhost:8000/rag/initialize")
+      .then((res) => {
+        console.log("초기화 응답:", res.data);
+      })
+      .catch((err) => {
+        console.error("초기화 요청 실패:", err);
+      });
+  }, []); // 빈 배열이면 최초 1회만 실행
   const isMobile = useMediaQuery({
     maxWidth: 768,
     ssrMatchMedia: () => ({ matches: false }),

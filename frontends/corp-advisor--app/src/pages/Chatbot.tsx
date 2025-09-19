@@ -5,7 +5,7 @@ import { ChatForm } from "../components/ChatForm.tsx";
 import { Bubble } from "../components/Bubble.tsx";
 import { Button } from "../components/Button.tsx";
 import { Modal } from "../components/Modal.tsx";
-import PdfViewer from "../components/PdfViewer.tsx";
+import { PdfViewer } from "../components/PdfViewer.tsx";
 // 메시지 타입 정의
 type Message = {
   id: number;
@@ -41,6 +41,7 @@ function Chatbot() {
 
   const inputContainerClass =
     deviceType === "mobile" ? "w-full" : "w-2/3 mx-auto";
+
   const messageListClass =
     deviceType === "mobile" ? "p-4" : "w-1/2 mx-auto p-4";
 
@@ -82,7 +83,7 @@ function Chatbot() {
     setInputValue("");
     setIsLoading(true); // 로딩 시작
     try {
-      const response = await fetch("http://127.0.0.1:8000/rag/query", {
+      const response = await fetch("http://localhost:8000/rag/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: newQuestion.text }),
@@ -214,26 +215,42 @@ function Chatbot() {
 
   const hasMessages = messages.length > 0;
 
+  // PDF 뷰어 상태 관리
+  const [isPdfVisible, setIsPdfVisible] = useState(true);
+  const handleClosePdf = () => setIsPdfVisible(false);
+
   return (
     <div className="w-full flex flex-col justify-center items-center h-screen bg-white font-sans">
       {hasMessages ? (
         <>
-          <main className="w-full flex-1 overflow-y-auto pb-32">
-            <div className={messageListClass}>
-              <div className="space-y-4">
-                {messages.map((msg) => {
-                  const isQuestion = msg.type === "question";
-                  return (
-                    <Bubble key={msg.id} isQuestion={isQuestion} msg={msg} />
-                  );
-                })}
-              </div>
+          <main
+            className={`w-full flex gap-4 ${
+              isPdfVisible ? "flex-row" : "flex-col"
+            } flex-1`}
+          >
+            {/* 메시지 리스트 */}
+            <div
+              className={`${messageListClass} scrollbar-hide flex-1 flex flex-col p-4 space-y-4 max-h-[calc(100vh-4rem)] overflow-auto`}
+            >
+              {messages.map((msg) => (
+                <Bubble
+                  key={msg.id}
+                  isQuestion={msg.type === "question"}
+                  msg={msg}
+                />
+              ))}
               <div ref={chatEndRef} />
             </div>
+
+            {/* PDF */}
+            {isPdfVisible && (
+              <div className="w-1/2 scrollbar-hide max-h-[calc(100vh-4rem)] overflow-auto bg-gray-100 p-2">
+                <PdfViewer initialPage={3} onClose={handleClosePdf} />
+              </div>
+            )}
           </main>
-          <footer className="w-full bg-white border-t border-gray-200 p-4 fixed bottom-0 left-0 right-0">
+          <footer className="w-full bg-white border-t border-gray-200 p-2 fixed bottom-0 left-0 right-0">
             {renderChatForm()}
-            <PdfViewer />
           </footer>
         </>
       ) : (
