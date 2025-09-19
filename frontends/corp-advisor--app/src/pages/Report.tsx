@@ -3,12 +3,18 @@ import { useChat } from "../ChatContext.tsx";
 import { useCorpData, FinancialRecord } from "../hooks/useCorpData.ts";
 import { Table } from "../components/Table.tsx";
 import { Button } from "../components/Button.tsx";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { LoadingSpinner } from "../components/LoadingSpinner.tsx";
 
+// 메시지 타입 정의
 type Message = {
   id: number;
-  type: "question" | "answer";
-  text: string;
+  type: "question" | "answer" | "loading";
+  text: string | React.ReactNode; 
+  isStreaming?: boolean;
 };
+
 
 function Report() {
   const getDeviceType = () => {
@@ -57,7 +63,7 @@ function Report() {
     const loadingAnswer: Message = {
       id: loadingAnswerId,
       type: "answer",
-      text: "답변을 생성 중입니다. 조금만 기다려주세요.",
+      text: <LoadingSpinner loadingText="답변을 생성 중입니다. 잠시만 기다려주세요."/>,
     };
 
     setMessages((prev) => [...prev, loadingAnswer]);
@@ -118,7 +124,25 @@ function Report() {
                           : "w-full"
                       }`}
                     >
-                      {msg.text}
+                      
+                    {typeof msg.text === "string" ? (
+                      <div className="prose max-w-none w-full">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            a: ({ node, ...props }) => (
+                              <a {...props} target="_blank" rel="noopener noreferrer">
+                                {props.children}
+                              </a>
+                            ),
+                          }}
+                        >
+                          {msg.text}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      msg.text
+                    )}
                     </div>
                   );
                 })}

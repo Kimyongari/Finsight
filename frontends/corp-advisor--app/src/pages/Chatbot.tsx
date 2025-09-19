@@ -7,13 +7,7 @@ import { Button } from "../components/Button.tsx";
 import { Modal } from "../components/steps/Modal.tsx";
 import { PdfViewer } from "../components/PdfViewer.tsx";
 import { LoadingSpinner } from "../components/LoadingSpinner.tsx";
-// 메시지 타입 정의
-type Message = {
-  id: number;
-  type: "question" | "answer" | "loading";
-  text: string | React.ReactNode; 
-  isStreaming?: boolean;
-};
+import { Message } from "../ChatContext"
 
 // 출처
 type RetrievedDoc = {

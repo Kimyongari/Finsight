@@ -1,14 +1,7 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-
-type Message = {
-  id: number;
-  type: "question" | "answer" | "loading";
-  text: string | React.ReactNode; 
-  isStreaming?: boolean;
-};
-
+import { Message } from "../ChatContext";
 // 출처
 type RetrievedDoc = {
   name: string;

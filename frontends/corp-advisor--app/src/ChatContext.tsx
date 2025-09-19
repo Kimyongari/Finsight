@@ -1,29 +1,34 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import React, {createContext, useContext, useState, ReactNode, useEffect} from "react";
 
-type Message = {
+export type Message = {
   id: number;
-  type: 'question' | 'answer';
-  text: string;
+  type: "question" | "answer" | "loading";
+  text: string | React.ReactNode;
   isStreaming?: boolean;
 };
 
 type ChatContextType = {
   messages: Message[];
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  setMessages: React.Dispatch < React.SetStateAction<Message[]> >;
 };
 
-const ChatContext = createContext<ChatContextType | undefined>(undefined);
+const ChatContext = createContext < ChatContextType | undefined > (undefined);
 
 export const useChat = () => {
   const context = useContext(ChatContext);
-  if (!context) throw new Error("useChat must be used within a ChatProvider");
+  if (!context) 
+    throw new Error("useChat must be used within a ChatProvider");
   return context;
 };
 
-export const ChatProvider = ({ children }: { children: ReactNode }) => {
+export const ChatProvider = ({children} : {
+  children: ReactNode
+}) => {
   const [messages, setMessages] = useState<Message[]>(() => {
     const saved = localStorage.getItem("chatMessages");
-    return saved ? JSON.parse(saved) : [];
+    return saved
+      ? JSON.parse(saved)
+      : [];
   });
 
   // messages가 바뀔 때마다 localStorage에 저장
@@ -31,9 +36,10 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("chatMessages", JSON.stringify(messages));
   }, [messages]);
 
-  return (
-    <ChatContext.Provider value={{ messages, setMessages }}>
-      {children}
-    </ChatContext.Provider>
-  );
+  return (<ChatContext.Provider value={{
+      messages,
+      setMessages
+    }}>
+    {children}
+  </ChatContext.Provider>);
 };
