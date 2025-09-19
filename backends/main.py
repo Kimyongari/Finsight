@@ -17,6 +17,7 @@ app.include_router(report_router.router, prefix="/report", tags=["Report Generat
 app.include_router(file_upload_router.router, prefix="/files", tags=["File Upload"])
 
 origins = [
+    "http://localhost:5173",
     "http://127.0.0.1:5173", # 프론트엔드 주소 (개발 환경에 맞게 변경)
     "http://127.0.0.1:8080",
 ]

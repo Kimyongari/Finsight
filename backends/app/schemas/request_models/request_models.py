@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-
+from typing import List
 
 class WebSearchRequest(BaseModel):
     question: str
@@ -14,4 +14,4 @@ class KeywordRequest(BaseModel):
     keyword: str
 
 class RegisterRequest(BaseModel):
-    file_name: str
+    file_name: List[str]

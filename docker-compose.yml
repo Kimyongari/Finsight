@@ -6,9 +6,9 @@ services:
       - 50051:50051
     restart: on-failure:0
     environment:
-      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
-      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
-      ENABLE_MODULES: ''  # 벡터화 모듈 비활성화
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
+      ENABLE_MODULES: "" # 벡터화 모듈 비활성화
       AUTOSCHEMA_ENABLED: false
 
   backend:
@@ -22,14 +22,14 @@ services:
     env_file:
       - ./backends/.env
 
-  frontend:
-    build:
-      context: ./frontends/corp-advisor--app
-      dockerfile: Dockerfile
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontends/corp-advisor--app:/app
-      - /app/node_modules
-    depends_on:
-      - backend
+  # frontend:
+  #   build:
+  #     context: ./frontends/corp-advisor--app
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "5173:5173"
+  #   volumes:
+  #     - ./frontends/corp-advisor--app:/app
+  #     - /app/node_modules
+  #   depends_on:
+  #     - backend

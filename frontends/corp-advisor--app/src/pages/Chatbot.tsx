@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { ChatForm } from "../components/ChatForm.tsx";
 import { Bubble } from "../components/Bubble.tsx";
 import { Button } from "../components/Button.tsx";
-import { Modal } from "../components/Modal.tsx";
+import { Modal } from "../components/steps/Modal.tsx";
 import { PdfViewer } from "../components/PdfViewer.tsx";
 // 메시지 타입 정의
 type Message = {
