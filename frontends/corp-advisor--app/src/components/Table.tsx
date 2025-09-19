@@ -1,4 +1,4 @@
-import { FinancialRecord } from "../hooks/useCsvData";
+import { FinancialRecord } from "../hooks/useCorpData";
 
 // ReportTable 컴포넌트가 받을 props의 타입을 정의합니다.
 interface ReportTableProps {
@@ -6,6 +6,7 @@ interface ReportTableProps {
   error: string | null;
   data: FinancialRecord[];
   searchTerm: string;
+  isSearchInput: boolean;
   onSearchChange: (term: string) => void;
   onClick?: (corp_code: string) => void;
 }
@@ -15,6 +16,7 @@ export function Table({
   error,
   data,
   searchTerm,
+  isSearchInput,
   onSearchChange,
   onClick,
 }: ReportTableProps) {
@@ -28,20 +30,20 @@ export function Table({
     return <div className="p-8 text-center text-red-500">오류: {error}</div>;
   }
 
-  // 실제 UI를 렌더링하는 부분
   return (
     <div className="mx-auto bg-white rounded-xl shadow-md p-6 mb-6">
       {/* 검색창 */}
-      <div className="mb-3 flex justify-end">
-        <input
-          type="text"
-          placeholder="기업명을 검색해주세요."
-          value={searchTerm}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full md:w-1/3 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-        />
-      </div>
-
+      {isSearchInput && (
+        <div className="mb-3 flex justify-end">
+          <input
+            type="text"
+            placeholder="기업명을 검색해주세요."
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="w-full md:w-1/3 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+          />
+        </div>
+      )}
       {/* 데이터 테이블 */}
       <div className="max-h-72 overflow-y-auto ">
         <table className="table-fixed w-full text-left border-collapse">

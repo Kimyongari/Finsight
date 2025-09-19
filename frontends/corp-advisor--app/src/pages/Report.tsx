@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Bubble } from "../components/Bubble.tsx";
 import { useChat } from "../ChatContext.tsx";
-import { FinancialRecord } from "../hooks/useCsvData";
+import { useCorpData, FinancialRecord } from "../hooks/useCorpData.ts";
 import { Table } from "../components/Table.tsx";
 import { Button } from "../components/Button.tsx";
 
@@ -11,13 +10,7 @@ type Message = {
   text: string;
 };
 
-interface ReportPageProps {
-  csvData: FinancialRecord[];
-  isLoading: boolean;
-  loadError: string | null;
-}
-
-function Report({ csvData, isLoading, loadError }: ReportPageProps) {
+function Report() {
   const getDeviceType = () => {
     const width = window.innerWidth;
     if (width <= 768) return "mobile";
@@ -26,34 +19,29 @@ function Report({ csvData, isLoading, loadError }: ReportPageProps) {
   };
 
   const [deviceType, setDeviceType] = useState(getDeviceType());
-
-  // 검색 및 필터링 상태
-  const [filteredData, setFilteredData] = useState<FinancialRecord[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-
-  // 원본 데이터 변경 시 필터링 데이터 업데이트
-  useEffect(() => {
-    setFilteredData(csvData);
-  }, [csvData]);
-
-  // 검색어가 변경될 때마다 데이터를 필터링
-  useEffect(() => {
-    if (!searchTerm) {
-      setFilteredData(csvData); // 검색어가 없으면 전체 데이터 표시
-    } else {
-      const lowercasedFilter = searchTerm.toLowerCase();
-      const filtered = csvData.filter((item) =>
-        // 각 행의 모든 값을 소문자로 변환하여 검색어와 비교
-        Object.values(item).some((value) =>
-          String(value).toLowerCase().includes(lowercasedFilter)
-        )
-      );
-      setFilteredData(filtered);
-    }
-  }, [searchTerm, csvData]);
+  const [searchTerm, setSearchTerm] = useState(""); // 입력 폼 값
+  const [submittedTerm, setSubmittedTerm] = useState(""); // fetch에 사용
+  const [tableSearch, setTableSearch] = useState(""); // 테이블 내부 검색
 
   const { messages, setMessages } = useChat();
-  const [inputValue, setInputValue] = useState("");
+  const chatEndRef = useRef<null | HTMLDivElement>(null);
+
+  const {
+    data: corpData,
+    loading: corpLoading,
+    error: corpError,
+  } = useCorpData(submittedTerm);
+
+  const handleCorpSearch = () => {
+    if (!searchTerm.trim()) return;
+    setSubmittedTerm(searchTerm.trim());
+    setTableSearch(searchTerm.trim()); // 동시에 테이블 필터링
+  };
+
+  const handleNewReport = () => {
+    setMessages([]);
+    localStorage.removeItem("chatMessages");
+  };
 
   useEffect(() => {
     const handleResize = () => setDeviceType(getDeviceType());
@@ -61,29 +49,9 @@ function Report({ csvData, isLoading, loadError }: ReportPageProps) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const inputContainerClass =
-    deviceType === "mobile" ? "w-full" : "w-2/3 mx-auto";
-  const messageListClass =
-    deviceType === "mobile" ? "p-4" : "w-1/2 mx-auto p-4";
-
-  const chatEndRef = useRef<null | HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
-  }, [inputValue]);
-
-  useEffect(() => {
-    localStorage.setItem("chatMessages", JSON.stringify(messages));
-  }, [messages]);
-
-  const handleSubmit = async (corpCode?: string) => {
-    // corpCode가 있으면 그걸 쓰고, 없으면 inputValue를 씀
-    const codeToUse = corpCode ?? inputValue;
-    if (!codeToUse.trim()) return;
+  const generateReport = async (corpCode?: string) => {
+    const codeToUse = corpCode;
+    if (!codeToUse?.trim()) return;
 
     const loadingAnswerId = Date.now() + 1;
     const loadingAnswer: Message = {
@@ -93,7 +61,7 @@ function Report({ csvData, isLoading, loadError }: ReportPageProps) {
     };
 
     setMessages((prev) => [...prev, loadingAnswer]);
-    setInputValue("");
+    setSearchTerm("");
 
     try {
       const response = await fetch(
@@ -124,16 +92,11 @@ function Report({ csvData, isLoading, loadError }: ReportPageProps) {
       );
     }
   };
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
-  const handleNewReport = () => {
-    setMessages([]);
-    localStorage.removeItem("chatMessages"); // localStorage도 초기화
-  };
+
+  const inputContainerClass =
+    deviceType === "mobile" ? "w-full" : "w-2/3 mx-auto";
+  const messageListClass =
+    deviceType === "mobile" ? "p-4" : "w-1/2 mx-auto p-4";
 
   const hasMessages = messages.length > 0;
 
@@ -147,16 +110,16 @@ function Report({ csvData, isLoading, loadError }: ReportPageProps) {
                 {messages.map((msg) => {
                   const isQuestion = msg.type === "question";
                   return (
-                    <Bubble
+                    <div
                       key={msg.id}
-                      isQuestion={isQuestion}
-                      msg={msg}
-                      answerClass={`rounded-2xl break-words ${
+                      className={`rounded-2xl break-words ${
                         isQuestion
                           ? "p-4 text-justify max-w-[80%] md:max-w-[70%] bg-indigo-50 shadow-sm text-gray-800 rounded-br-none"
                           : "w-full"
                       }`}
-                    />
+                    >
+                      {msg.text}
+                    </div>
                   );
                 })}
               </div>
@@ -182,16 +145,36 @@ function Report({ csvData, isLoading, loadError }: ReportPageProps) {
               <p className="text-gray-500">CorpAdvisor</p>
             </header>
             <main className="w-full max-w-screen-md">
-              <div className="overflow-x-auto w-full">
-                <Table
-                  loading={isLoading}
-                  error={loadError}
-                  data={filteredData}
-                  searchTerm={searchTerm}
-                  onSearchChange={setSearchTerm}
-                  onClick={(corpCode: string) => handleSubmit(corpCode)}
+              <div className="overflow-x-auto w-full mb-4 flex gap-2 p-4">
+                <input
+                  type="text"
+                  className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  placeholder="기업명을 입력하세요"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value); // 입력값 상태
+                    setTableSearch(e.target.value); // 테이블 필터링
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleCorpSearch();
+                  }}
                 />
+                <Button ButtonText="검색" onClick={handleCorpSearch} />
               </div>
+
+              <Table
+                loading={corpLoading}
+                error={corpError}
+                data={corpData.filter((item) =>
+                  Object.values(item).some((v) =>
+                    String(v).toLowerCase().includes(tableSearch.toLowerCase())
+                  )
+                )}
+                isSearchInput={false}
+                searchTerm={tableSearch}
+                onSearchChange={setTableSearch}
+                onClick={generateReport}
+              />
             </main>
           </div>
         </div>
