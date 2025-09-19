@@ -10,9 +10,16 @@ type Message = {
   isStreaming?: boolean;
 };
 
+// 출처
+type RetrievedDoc = {
+  name: string;
+  n_page: number;
+};
+
 type BubbleProps = {
   isQuestion: boolean;
   answerClass?: string;
+  cites: RetrievedDoc[];
   msg: Message;
 };
 
@@ -23,6 +30,7 @@ export function Bubble({
       ? "text-gray-800 max-w-[80%] md:max-w-[70%] bg-indigo-50 rounded-br-none"
       : "max-w-[90%] md:max-w-[80%] border-gray-100 text-gray-800 border border-solid rounded-bl-none"
   }`,
+  cites,
   msg,
 }: BubbleProps) {
   return (
@@ -34,11 +42,18 @@ export function Bubble({
         {isQuestion ? (
           msg.text
         ) : (
-          <div className="prose max-w-none w-full">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {msg.text + (msg.isStreaming ? "\n" : "")}
-            </ReactMarkdown>
-          </div>
+          <>
+            <div className="prose max-w-none w-full">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {msg.text + (msg.isStreaming ? "\n" : "")}
+              </ReactMarkdown>
+            </div>
+            <div>
+              {cites.map((cite) => (
+                <div>{cite.name}</div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>

@@ -14,9 +14,17 @@ type Message = {
   isStreaming?: boolean;
 };
 
+// 출처
+type RetrievedDoc = {
+  name: string;
+  n_page: number;
+};
+
 const initialMessages: Message[] = [];
 
 function Chatbot() {
+  const [retrievedDocs, setRetrievedDocs] = useState<RetrievedDoc[]>([]);
+
   // 디바이스 크기
   const getDeviceType = () => {
     const width = window.innerWidth;
@@ -90,6 +98,10 @@ function Chatbot() {
       });
       const data = await response.json();
       console.log("답변 데이터:", data);
+
+      // 출처 업데이트
+      setRetrievedDocs(data.retrieved_docs || []);
+      console.log("출처 문서:", data.retrieved_documents);
       setTypingTextMap((prev) => ({ ...prev, [loadingAnswerId]: data.answer })); // 전체 답변 텍스트를 임시 상태에 저장, 타이핑 효과
     } catch (err) {
       console.error("답변을 가져오는 데 실패했습니다:", err);
@@ -237,6 +249,7 @@ function Chatbot() {
                   key={msg.id}
                   isQuestion={msg.type === "question"}
                   msg={msg}
+                  cites={retrievedDocs}
                 />
               ))}
               <div ref={chatEndRef} />
