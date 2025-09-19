@@ -2,18 +2,18 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-// 메시지 타입 정의
 type Message = {
   id: number;
   type: "question" | "answer" | "loading";
-  text: string;
+  text: string | React.ReactNode; 
   isStreaming?: boolean;
 };
 
 // 출처
 type RetrievedDoc = {
   name: string;
-  n_page: number;
+  i_page: number;
+  file_path: string;
 };
 
 type BubbleProps = {
@@ -21,6 +21,7 @@ type BubbleProps = {
   answerClass?: string;
   cites: RetrievedDoc[];
   msg: Message;
+  onCiteClick: (page: number) => void;
 };
 
 export function Bubble({
@@ -32,29 +33,45 @@ export function Bubble({
   }`,
   cites,
   msg,
+  onCiteClick,
 }: BubbleProps) {
+  const renderContent = () => {
+    // 문자열이면 ReactMarkdown 사용, JSX이면 그대로 렌더링
+    if (typeof msg.text === "string") {
+      return (
+        <>
+          <div className="prose max-w-none w-full">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {msg.text + (msg.isStreaming ? "\n" : "")}
+            </ReactMarkdown>
+          </div>
+          <hr />
+          <div className="flex flex-col gap-2 text-sm">
+            {cites.map((cite) => (
+              <button
+                key={cite.name + cite.i_page}
+                onClick={() => onCiteClick(cite.i_page)}
+                className="text-left"
+              >
+                {cite.name}
+              </button>
+            ))}
+          </div>
+        </>
+      );
+    } else {
+      // JSX 요소면 그대로 렌더링
+      return msg.text;
+    }
+  };
+
   return (
     <div
       key={msg.id}
       className={`flex w-full ${isQuestion ? "justify-end" : ""}`}
     >
       <div className={answerClass}>
-        {isQuestion ? (
-          msg.text
-        ) : (
-          <>
-            <div className="prose max-w-none w-full">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {msg.text + (msg.isStreaming ? "\n" : "")}
-              </ReactMarkdown>
-            </div>
-            <div>
-              {cites.map((cite) => (
-                <div>{cite.name}</div>
-              ))}
-            </div>
-          </>
-        )}
+        {isQuestion ? msg.text : renderContent()}
       </div>
     </div>
   );

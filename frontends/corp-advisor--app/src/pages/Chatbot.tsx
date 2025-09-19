@@ -6,24 +6,43 @@ import { Bubble } from "../components/Bubble.tsx";
 import { Button } from "../components/Button.tsx";
 import { Modal } from "../components/steps/Modal.tsx";
 import { PdfViewer } from "../components/PdfViewer.tsx";
+import { LoadingSpinner } from "../components/LoadingSpinner.tsx";
 // 메시지 타입 정의
 type Message = {
   id: number;
   type: "question" | "answer" | "loading";
-  text: string;
+  text: string | React.ReactNode; 
   isStreaming?: boolean;
 };
 
 // 출처
 type RetrievedDoc = {
   name: string;
-  n_page: number;
+  i_page: number;
+  file_path: string;
 };
 
 const initialMessages: Message[] = [];
 
 function Chatbot() {
-  const [retrievedDocs, setRetrievedDocs] = useState<RetrievedDoc[]>([]);
+  const exampleDocs = [
+    {
+      name: '전자 금융 감독',
+      i_page: 3,
+      file_path: '/1111.pdf'
+    },
+    {
+      name: '예시 2',
+      i_page: 2,
+      file_path: '/121.pdf'
+    },
+    {
+      name: '예시 3',
+      i_page: 5,
+      file_path: '/121.pdf'
+    },
+  ]
+  const [retrievedDocs, setRetrievedDocs] = useState<RetrievedDoc[]>(exampleDocs);
 
   // 디바이스 크기
   const getDeviceType = () => {
@@ -82,7 +101,7 @@ function Chatbot() {
     const loadingAnswer: Message = {
       id: loadingAnswerId,
       type: "loading",
-      text: "답변을 생각 중입니다. 조금만 기다려주세요.",
+      text: <LoadingSpinner loadingText="답변을 생성 중입니다. 잠시만 기다려주세요." />,
       isStreaming: true,
     };
 
@@ -100,7 +119,7 @@ function Chatbot() {
       console.log("답변 데이터:", data);
 
       // 출처 업데이트
-      setRetrievedDocs(data.retrieved_docs || []);
+      setRetrievedDocs(data.retrieved_docs || exampleDocs);
       console.log("출처 문서:", data.retrieved_documents);
       setTypingTextMap((prev) => ({ ...prev, [loadingAnswerId]: data.answer })); // 전체 답변 텍스트를 임시 상태에 저장, 타이핑 효과
     } catch (err) {
@@ -228,8 +247,35 @@ function Chatbot() {
   const hasMessages = messages.length > 0;
 
   // PDF 뷰어 상태 관리
-  const [isPdfVisible, setIsPdfVisible] = useState(true);
+  const [isPdfVisible, setIsPdfVisible] = useState(false);
   const handleClosePdf = () => setIsPdfVisible(false);
+  
+  // PDF 페이지
+  const [pageNum, setPageNum] = useState(1);
+  const [pdfWidth, setPdfWidth] = useState(400); // 초기 폭 (px)
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const startX = e.clientX;
+    const startWidth = pdfWidth;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(200, startWidth + (startX - e.clientX));
+      setPdfWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+    // Bubble에서 클릭될 때 호출되는 핸들러
+  const handleCiteClick = (page: number) => {
+    setPageNum(page); // PdfViewer에 넘길 페이지 번호 업데이트
+    setIsPdfVisible(true);
+  };
 
   return (
     <div className="w-full flex flex-col justify-center items-center h-screen bg-white font-sans">
@@ -246,10 +292,11 @@ function Chatbot() {
             >
               {messages.map((msg) => (
                 <Bubble
+                  onCiteClick={handleCiteClick}
                   key={msg.id}
                   isQuestion={msg.type === "question"}
-                  msg={msg}
                   cites={retrievedDocs}
+                  msg={msg}
                 />
               ))}
               <div ref={chatEndRef} />
@@ -257,9 +304,15 @@ function Chatbot() {
 
             {/* PDF */}
             {isPdfVisible && (
-              <div className="w-1/2 scrollbar-hide max-h-[calc(100vh-4rem)] overflow-auto bg-gray-100 p-2">
-                <PdfViewer initialPage={3} onClose={handleClosePdf} />
-              </div>
+              <>
+                <div
+                  className="w-1 bg-gray-300 cursor-col-resize"
+                  onMouseDown={handleMouseDown}
+                />
+                <div style={{width: pdfWidth}} className="w-1/2 scrollbar-hide max-h-[calc(100vh-4rem)] overflow-auto bg-gray-100 p-2">
+                  <PdfViewer initialPage={pageNum} onPageChange={setPageNum} onClose={handleClosePdf} />
+                </div>
+              </>
             )}
           </main>
           <footer className="w-full bg-white border-t border-gray-200 p-2 fixed bottom-0 left-0 right-0">
