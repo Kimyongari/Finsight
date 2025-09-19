@@ -30,3 +30,8 @@ class ResetResponse(BaseModel):
 class InitResponse(BaseModel):
     success: bool
     msg: str
+
+class WebSearchResponse(BaseModel):
+    answer: str
+    success: bool
+    search_results: list[dict]

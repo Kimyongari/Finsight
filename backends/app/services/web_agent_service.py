@@ -78,7 +78,7 @@ class WebAgentService:
         results = await asyncio.gather(*tasks)
         return [doc for doc_list in results for doc in doc_list]
 
-    async def search(self, question: str) -> str:
+    async def search(self, question: str) -> dict:
         """웹 검색 에이전트의 전체 워크플로우를 실행합니다."""
         print(f"\n--- 웹 검색 에이전트 시작 ---")
 
@@ -86,7 +86,11 @@ class WebAgentService:
         print("[1/5] 초기 검색 및 스크래핑")
         documents = await WebSearchTool(query=question, num_results=5).search_and_scrape()
         if not documents:
-            return "초기 검색 결과, 관련 문서를 찾지 못했습니다."
+            return {
+                "success": False,
+                "answer": "초기 검색 결과, 관련 문서를 찾지 못했습니다.",
+                "search_results": []
+            }
 
         # 2단계: 초기 컨텍스트 필터링
         print("[2/5] 초기 검색 결과 필터링")
@@ -94,7 +98,11 @@ class WebAgentService:
         context = self._format_context(filtered_docs)
 
         if not context:
-            return "초기 컨텍스트 생성에 실패했습니다."
+            return {
+                "success": False,
+                "answer": "초기 컨텍스트 생성에 실패했습니다.",
+                "search_results": []
+            }
 
         # 3단계: 컨텍스트 유효성 검사
         print("[3/5] 컨텍스트 유효성 검사")
@@ -112,17 +120,26 @@ class WebAgentService:
             print("[4/5] 추가 검색 및 필터링")
             rewritten_docs = await self._rewrite_and_search(question, num_results_per_query=1)
             if not rewritten_docs:
-                return "재검색 결과, 관련 문서를 찾지 못해 답변을 생성할 수 없습니다."
+                return {
+                    "success": False,
+                    "answer": "재검색 결과, 관련 문서를 찾지 못해 답변을 생성할 수 없습니다.",
+                    "search_results": []
+                }
 
             final_docs = await self._filter_documents_by_similarity(
                 question, rewritten_docs, top_k=3
             )
+            filtered_docs = final_docs
             context = self._format_context(final_docs)
         else:
             print("[4/5] 초기 컨텍스트가 충분하여 답변 생성으로 넘어갑니다.")
 
         if not context:
-            return "필터링 결과, 답변에 사용할 관련성 높은 문서를 찾지 못했습니다."
+            return {
+                "success": False,
+                "answer": "필터링 결과, 답변에 사용할 관련성 높은 문서를 찾지 못했습니다.",
+                "search_results": []
+            }
 
         # 5단계: 최종 답변 생성
         print("[5/5] 최종 답변 생성")
@@ -136,4 +153,15 @@ class WebAgentService:
         )
         final_answer = await self.llm.acall(answer_prompt, answer_content)
 
-        return final_answer if final_answer else "최종 답변 생성에 실패했습니다."
+        if not final_answer:
+            return {
+                "success": False,
+                "answer": "최종 답변 생성에 실패했습니다.",
+                "search_results": []
+            }
+
+        return {
+            "success": True,
+            "answer": final_answer,
+            "search_results": filtered_docs
+        }
