@@ -3,12 +3,11 @@ import { useState, useEffect, useRef } from "react";
 
 import { ChatForm } from "../components/ChatForm.tsx";
 import { Bubble } from "../components/Bubble.tsx";
-import { Button } from "../components/Button.tsx";
 import { Modal } from "../components/steps/Modal.tsx";
 import { PdfViewer } from "../components/PdfViewer.tsx";
 import { LoadingSpinner } from "../components/LoadingSpinner.tsx";
 import { Message } from "../ChatContext"
-
+import { RAGDropdown } from "../components/RAGDropdown.tsx";
 // 출처
 type RetrievedDoc = {
   name: string;
@@ -113,7 +112,7 @@ function Chatbot() {
       console.log("답변 데이터:", data);
 
       // 출처 업데이트
-      setRetrievedDocs(data.retrieved_docs || exampleDocs);
+      setRetrievedDocs(data.retrieved_documents || exampleDocs);
       console.log("출처 문서:", data.retrieved_documents);
       setTypingTextMap((prev) => ({ ...prev, [loadingAnswerId]: data.answer })); // 전체 답변 텍스트를 임시 상태에 저장, 타이핑 효과
     } catch (err) {
@@ -230,10 +229,12 @@ function Chatbot() {
       onChange={(e) => setInputValue(e.target.value)}
       onKeyDown={handleKeyDown}
       onClick={handleSubmit}
+      handleOpenModal={handleOpenModal}
       loadingPlaceholder="답변 생성 중입니다."
       defaultPlaceholder="금융과 관련한 질문을 입력해주세요."
       afterSubmitPlaceholder="추가 질문을 입력하세요."
       hasMessages={hasMessages}
+      totalUploadedFiles={totalUploadedFiles}
       isLoading={isLoading}
     />
   );
@@ -327,19 +328,7 @@ function Chatbot() {
             <h1 className="text-4xl font-bold text-gray-800">금융 자문 챗봇</h1>
             <p className="text-gray-500 mt-2">CorpAdvisor</p>
           </header>
-          <div>
-            {totalUploadedFiles.length > 0 ? (
-              <p className="text-gray-600">
-                {totalUploadedFiles.length}개의 파일이 업로드되었습니다.
-              </p>
-            ) : (
-              <p className="text-gray-600">업로드된 파일이 없습니다.</p>
-            )}
-          </div>
-          <Button
-            ButtonText="다른 데이터 업로드"
-            onClick={handleOpenModal}
-          ></Button>
+          <RAGDropdown />
           {isModalOpen && renderModal()}
           <div className="w-full">{renderChatForm()}</div>
         </div>
