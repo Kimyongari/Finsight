@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-
+import { UploadFile } from "./UploadFile";
 interface FileUploaderProps {
   uploadedFiles: File[];
   setUploadedFiles: (files: File[]) => void;
@@ -22,7 +22,9 @@ export function FileUploader({
     multiple: true,
     accept: { "application/pdf": [".pdf"] },
   });
-
+  const handleFileDelete = (targetIndex: number) => {
+    setUploadedFiles(uploadedFiles.filter((_, index) => index !== targetIndex));
+  };
   return (
     <div className="flex flex-col border-2 border-dashed p-4 rounded mb-4">
       <div {...getRootProps()} className="flex-1 cursor-pointer mb-2">
@@ -35,17 +37,11 @@ export function FileUploader({
       </div>
 
       {uploadedFiles.map((file, index) => (
-        <div key={index} className="flex items-center mb-2">
-          <span className="flex-1">{file.name}</span>
-          <button
-            onClick={() =>
-              setUploadedFiles(uploadedFiles.filter((_, i) => i !== index))
-            }
-            className="ml-2 bg-red-500 text-white px-2 py-1 rounded"
-          >
-            X
-          </button>
-        </div>
+        <UploadFile
+          index={index}
+          fileName={file.name}
+          onDelete={() => handleFileDelete(index)}
+        />
       ))}
     </div>
   );

@@ -1,12 +1,14 @@
 // Chatbot.tsx
 import { useState, useEffect, useRef } from "react";
 
-import { ChatForm } from "../components/ChatForm.tsx";
-import { Bubble } from "../components/Bubble.tsx";
-import { Modal } from "../components/steps/Modal.tsx";
-import { PdfViewer } from "../components/PdfViewer.tsx";
-import { LoadingSpinner } from "../components/LoadingSpinner.tsx";
-import { Message } from "../ChatContext";
+import { ChatForm } from "../components/ChatForm";
+import { Bubble } from "../components/Bubble";
+import { Modal } from "../components/steps/Modal";
+import { PdfViewer } from "../components/PdfViewer";
+import { LoadingSpinner } from "../components/LoadingSpinner";
+import { Message, CollectionFile } from "../types"; // Message, CollectionFile 타입을 types/index.ts 등에서 가져오도록 수정
+import { useCollectionFiles } from "../hooks/useCollectionFiles";
+import { useDynamicQuery, QueryMode } from "../hooks/useDynamicQuery";
 
 // 출처
 type RetrievedDoc = {
@@ -18,7 +20,7 @@ type RetrievedDoc = {
 const initialMessages: Message[] = [];
 
 function Chatbot() {
-  const exampleDocs = [
+  const exampleDocs: RetrievedDoc[] = [
     {
       name: "전자 금융 감독",
       i_page: 3,
@@ -37,93 +39,68 @@ function Chatbot() {
   ];
   const [retrievedDocs, setRetrievedDocs] =
     useState<RetrievedDoc[]>(exampleDocs);
-  // 디바이스 크기
-  const getDeviceType = () => {
-    const width = window.innerWidth;
-    if (width <= 768) return "mobile";
-    if (width <= 1024) return "tablet";
-    return "desktop";
-  };
 
-  const [deviceType, setDeviceType] = useState(getDeviceType());
+  // --- 상태 및 훅 정의 ---
 
-  // 메시지, 타이핑 효과 관련 상태
+  // 1. 서버에 저장된 파일 목록 관리
+  const { files: fetchedFiles, refetch: refetchCollectionFiles } =
+    useCollectionFiles();
+  const [collectionFiles, setCollectionFiles] = useState<CollectionFile[]>([]);
+
+  // 2. 메시지 및 채팅 관련 상태
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [inputValue, setInputValue] = useState("");
   const [typingTextMap, setTypingTextMap] = useState<{ [id: number]: string }>(
     {}
   );
-  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    const handleResize = () => setDeviceType(getDeviceType());
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  // 3. 동적 API 호출 훅
+  const [queryMode, setQueryMode] = useState<QueryMode>("rag");
+  const {
+    executeQuery,
+    data: queryData,
+    isQueryLoading: isQueryLoading,
+    queryError: queryError,
+  } = useDynamicQuery();
+  const [pendingMessageId, setPendingMessageId] = useState<number | null>(null);
 
-  const inputContainerClass =
-    deviceType === "mobile" ? "w-full" : "w-3/4 mx-auto";
-
-  const messageListClass =
-    deviceType === "mobile" ? "p-4" : "w-1/2 mx-auto p-4";
-
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
-  const [inputValue, setInputValue] = useState("");
+  // 4. UI 및 기타 상태
+  const [deviceType, setDeviceType] = useState(getDeviceType());
   const chatEndRef = useRef<null | HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  // --- 파일 삭제 핸들러 ---
+  const handleFileDelete = (fileNameToDelete: string) => {
+    setCollectionFiles((currentFiles) =>
+      currentFiles.filter((file) => file.file_name !== fileNameToDelete)
+    );
+  };
 
+  // --- useEffect 훅들 ---
+
+  // useCollectionFiles 훅이 파일 목록을 가져오면 collectionFiles 상태에 반영
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    setCollectionFiles(fetchedFiles);
+  }, [fetchedFiles]);
+
+  // API 호출 성공 처리
+  useEffect(() => {
+    if (queryData && pendingMessageId) {
+      setRetrievedDocs(queryData.retrieved_documents || exampleDocs);
+      setTypingTextMap((prev) => ({
+        ...prev,
+        [pendingMessageId]: queryData.answer,
+      }));
+      setPendingMessageId(null);
     }
-  }, [inputValue]);
+  }, [queryData, pendingMessageId]);
 
-  const handleSubmit = async () => {
-    if (!inputValue.trim()) return;
-
-    const newQuestion: Message = {
-      id: Date.now(),
-      type: "question",
-      text: inputValue,
-    };
-
-    const loadingAnswerId = Date.now() + 1;
-    const loadingAnswer: Message = {
-      id: loadingAnswerId,
-      type: "loading",
-      text: (
-        <LoadingSpinner loadingText="답변을 생성 중입니다. 잠시만 기다려주세요." />
-      ),
-      isStreaming: true,
-    };
-
-    setMessages((prev) => [...prev, newQuestion, loadingAnswer]); // 질문과 빈 답변 메시지를 추가
-
-    setInputValue("");
-    setIsLoading(true); // 로딩 시작
-    setIsPdfVisible(false);
-    try {
-      const response = await fetch("http://localhost:8000/rag/query", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: newQuestion.text }),
-      });
-      const data = await response.json();
-      console.log("답변 데이터:", data);
-
-      // 출처 업데이트
-      setRetrievedDocs(data.retrieved_documents || exampleDocs);
-
-      console.log("출처 문서:", data.retrieved_documents);
-      setTypingTextMap((prev) => ({ ...prev, [loadingAnswerId]: data.answer })); // 전체 답변 텍스트를 임시 상태에 저장, 타이핑 효과
-    } catch (err) {
-      console.error("답변을 가져오는 데 실패했습니다:", err);
+  // API 호출 실패 처리
+  useEffect(() => {
+    if (queryError && pendingMessageId) {
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === loadingAnswerId
+          msg.id === pendingMessageId
             ? {
                 ...msg,
                 text: "답변을 가져오는 데 실패했습니다.",
@@ -132,12 +109,11 @@ function Chatbot() {
             : msg
         )
       );
-    } finally {
-      // 성공이든 실패든 입력창 다시 활성화
-      setIsLoading(false);
+      setPendingMessageId(null);
     }
-  };
-  // --- 타자 치기 효과 적용 ---
+  }, [queryError, pendingMessageId]);
+
+  // 타자 치기 효과 적용
   useEffect(() => {
     Object.entries(typingTextMap).forEach(([idStr, fullText]) => {
       const id = Number(idStr);
@@ -161,19 +137,66 @@ function Chatbot() {
                 : msg
             )
           );
-          // 타이핑이 끝나면 isStreaming을 false로 변경
-          setIsLoading(false);
-
           setTypingTextMap((prev) => {
             const { [id]: _, ...rest } = prev;
             return rest;
           });
         }
-      }, 1);
+      }, 10); // 1ms는 너무 빠르므로 10ms 정도로 조정
 
       return () => clearInterval(intervalId);
     });
-  }, [typingTextMap]); // typingText 상태가 변경될 때만 이펙트 실행
+  }, [typingTextMap]);
+
+  // 창 크기 변경 감지
+  useEffect(() => {
+    const handleResize = () => setDeviceType(getDeviceType());
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // 자동 스크롤
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Textarea 높이 자동 조절
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [inputValue]);
+
+  // --- 핸들러 함수들 ---
+
+  const handleSubmit = () => {
+    if (!inputValue.trim()) return;
+
+    const newQuestion: Message = {
+      id: Date.now(),
+      type: "question",
+      text: inputValue,
+    };
+
+    const loadingAnswerId = Date.now() + 1;
+    const loadingAnswer: Message = {
+      id: loadingAnswerId,
+      type: "loading",
+      text: (
+        <LoadingSpinner loadingText="답변을 생성 중입니다. 잠시만 기다려주세요." />
+      ),
+      isStreaming: true,
+    };
+
+    setMessages((prev) => [...prev, newQuestion, loadingAnswer]);
+    setInputValue("");
+    setIsPdfVisible(false);
+    setPendingMessageId(loadingAnswerId);
+
+    // 훅을 사용하여 API 호출 실행
+    executeQuery(newQuestion.text, queryMode);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -182,77 +205,84 @@ function Chatbot() {
     }
   };
 
-  // 모달 관련 상태
+  // 디바이스 크기 계산 함수
+  function getDeviceType() {
+    const width = window.innerWidth;
+    if (width <= 768) return "mobile";
+    if (width <= 1024) return "tablet";
+    return "desktop";
+  }
+
+  const inputContainerClass =
+    deviceType === "mobile" ? "w-full" : "w-3/4 mx-auto";
+
+  const messageListClass =
+    deviceType === "mobile" ? "p-4" : "w-1/2 mx-auto p-4";
+
+  const hasMessages = messages.length > 0;
+
+  // 모달 관련 상태 및 핸들러
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [totalUploadedFiles, setTotalUploadedFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
   const handleOpenModal = () => {
     setCurrentStep(1);
     setIsModalOpen(true);
   };
+
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    // 모달을 다시 열 때 항상 1단계부터 시작하도록 초기화
     setTimeout(() => {
       setCurrentStep(1);
-    }, 300); // 모달 닫기 애니메이션 시간 고려
+    }, 300);
   };
 
-  // Stepper를 위한 상태
-  const [currentStep, setCurrentStep] = useState(1);
-  const [totalUploadedFiles, settotalUploadedFiles] = useState<File[]>([]);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]); // 업로드된 파일들
-  // 1단계 -> 2단계로 넘어가는 함수
   const handleUploadSuccess = (newFiles: File[]) => {
-    settotalUploadedFiles((prevFiles) => [...prevFiles, ...newFiles]); // 모달 창 끄고 새로 업로드 시 누적
-    setUploadedFiles(newFiles); // 추가로 업로드된 파일들 상태 업데이트
+    setTotalUploadedFiles((prevFiles) => [...prevFiles, ...newFiles]);
+    setUploadedFiles(newFiles);
     setCurrentStep(2);
   };
 
-  // 2단계 -> 3단계로 넘어가는 함수
   const handleTriggerSuccess = () => {
     setCurrentStep(3);
   };
 
-  // 모달 렌더링
-  const renderModal = () => (
-    <Modal
-      currentStep={currentStep}
-      uploadedFiles={uploadedFiles}
-      onClose={handleCloseModal}
-      onUploadSuccess={handleUploadSuccess}
-      onTriggerSuccess={handleTriggerSuccess}
-    />
-  );
-
-  // 챗팅 창 렌더링
-  const renderChatForm = () => (
-    <ChatForm
-      inputContainerClass={inputContainerClass}
-      textareaRef={textareaRef}
-      inputValue={inputValue}
-      onChange={(e) => setInputValue(e.target.value)}
-      onKeyDown={handleKeyDown}
-      onClick={handleSubmit}
-      handleOpenModal={handleOpenModal}
-      loadingPlaceholder="답변 생성 중입니다."
-      defaultPlaceholder="금융과 관련한 질문을 입력해주세요."
-      afterSubmitPlaceholder="추가 질문을 입력하세요."
-      hasMessages={hasMessages}
-      totalUploadedFiles={totalUploadedFiles}
-      isLoading={isLoading}
-    />
-  );
-
-  const hasMessages = messages.length > 0;
-
-  // PDF 뷰어 상태 관리
+  // PDF 뷰어 관련 상태 및 핸들러
   const [isPdfVisible, setIsPdfVisible] = useState(false);
+  const [pageNum, setPageNum] = useState(1);
+  const [pdfWidth, setPdfWidth] = useState(400);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+
   const handleClosePdf = () => setIsPdfVisible(false);
 
-  // PDF 페이지
-  const [pageNum, setPageNum] = useState(1);
-  const [pdfWidth, setPdfWidth] = useState(400); // 초기 폭 (px)
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const handleCiteClick = async (fileName: string, page: number) => {
+    if (pageNum !== page || !isPdfVisible) {
+      setPageNum(page);
+      setIsPdfVisible(true);
+    } else if (pageNum === page && pdfUrl) {
+      setIsPdfVisible((prev) => !prev);
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:8000/files/download-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_name: fileName }),
+      });
+      if (!response.ok) throw new Error("PDF fetch failed");
+
+      const blob = await response.blob();
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(url);
+      setIsPdfVisible(true);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     const startX = e.clientX;
@@ -272,41 +302,7 @@ function Chatbot() {
     window.addEventListener("mouseup", handleMouseUp);
   };
 
-  // Bubble에서 클릭될 때 호출되는 핸들러
-  const handleCiteClick = async (fileName: string, page: number) => {
-    if (pageNum !== page) {
-      // 다른 페이지 클릭 → 페이지 번호 바꾸고 무조건 뷰어 열기
-      setPageNum(page);
-      setIsPdfVisible(true);
-    }
-
-    // 같은 페이지 클릭 시 토글
-    if (pageNum === page && pdfUrl) {
-      setIsPdfVisible((prev) => !prev);
-    } else {
-      // PDF 불러오기
-      try {
-        const response = await fetch(
-          "http://localhost:8000/files/download-pdf",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ file_name: fileName }),
-          }
-        );
-        if (!response.ok) throw new Error("PDF fetch failed");
-
-        const blob = await response.blob();
-        if (pdfUrl) URL.revokeObjectURL(pdfUrl); // 기존 Blob URL 해제
-        const url = URL.createObjectURL(blob);
-        setPdfUrl(url);
-        setIsPdfVisible(true);
-      } catch (err) {
-        console.error(err);
-      }
-    }
-  };
-
+  // --- 렌더링 ---
   return (
     <div className="w-full flex flex-col justify-center items-center h-screen bg-white font-sans">
       {hasMessages ? (
@@ -316,15 +312,14 @@ function Chatbot() {
               isPdfVisible ? "flex-row" : "flex-col"
             } flex-1`}
           >
-            {/* 메시지 리스트 */}
             <div
               className={`${messageListClass} scrollbar-hide flex-1 flex flex-col p-4 space-y-4 max-h-[calc(100vh-4rem)] overflow-auto`}
             >
               {messages.map((msg) => (
                 <Bubble
+                  isLoading={isQueryLoading}
                   onCiteClick={handleCiteClick}
                   key={msg.id}
-                  isLoading={isLoading}
                   isQuestion={msg.type === "question"}
                   cites={retrievedDocs}
                   msg={msg}
@@ -333,7 +328,6 @@ function Chatbot() {
               <div ref={chatEndRef} />
             </div>
 
-            {/* PDF */}
             {isPdfVisible && (
               <>
                 <div
@@ -342,7 +336,7 @@ function Chatbot() {
                 />
                 <div
                   style={{ width: pdfWidth }}
-                  className="w-1/2 scrollbar-hide max-h-[calc(100vh-4rem)] overflow-auto bg-gray-100 p-2"
+                  className="scrollbar-hide max-h-[calc(100vh-4rem)] overflow-auto bg-gray-100 p-2"
                 >
                   {pdfUrl ? (
                     <PdfViewer
@@ -359,7 +353,21 @@ function Chatbot() {
             )}
           </main>
           <footer className="w-full bg-white border-t border-gray-200 p-2 fixed bottom-0 left-0 right-0">
-            {renderChatForm()}
+            <ChatForm
+              inputContainerClass={inputContainerClass}
+              textareaRef={textareaRef}
+              inputValue={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onClick={handleSubmit}
+              handleOpenModal={handleOpenModal}
+              collectionFiles={collectionFiles}
+              handleFileDelete={handleFileDelete}
+              hasMessages={hasMessages}
+              isLoading={isQueryLoading} // 훅의 로딩 상태를 사용
+              queryMode={queryMode}
+              setQueryMode={setQueryMode}
+            />
           </footer>
         </>
       ) : (
@@ -376,8 +384,30 @@ function Chatbot() {
             <h1 className="text-4xl font-bold text-gray-800">금융 자문 챗봇</h1>
             <p className="text-gray-500 mt-2">CorpAdvisor</p>
           </header>
-          {isModalOpen && renderModal()}
-          {renderChatForm()}
+          {isModalOpen && (
+            <Modal
+              currentStep={currentStep}
+              uploadedFiles={uploadedFiles}
+              onClose={handleCloseModal}
+              onUploadSuccess={handleUploadSuccess}
+              onTriggerSuccess={handleTriggerSuccess}
+            />
+          )}
+          <ChatForm
+            inputContainerClass={inputContainerClass}
+            textareaRef={textareaRef}
+            inputValue={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onClick={handleSubmit}
+            handleOpenModal={handleOpenModal}
+            collectionFiles={collectionFiles}
+            handleFileDelete={handleFileDelete}
+            hasMessages={hasMessages}
+            isLoading={isQueryLoading} // 훅의 로딩 상태를 사용
+            queryMode={queryMode}
+            setQueryMode={setQueryMode}
+          />
         </div>
       )}
     </div>

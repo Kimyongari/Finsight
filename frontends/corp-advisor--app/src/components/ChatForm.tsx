@@ -2,6 +2,10 @@ import React, { useState } from "react";
 import { FooterText } from "./FooterText";
 import { Upload, SendHorizonal } from "lucide-react";
 import { RAGDropdown } from "./RAGDropdown";
+import { CollectionFile } from "../hooks/useCollectionFiles";
+import { UploadFile } from "./UploadFile";
+import { useDeleteFile } from "../hooks/useDeleteFile";
+import { QueryMode } from "../hooks/useDynamicQuery";
 
 type ChatFormProps = {
   inputContainerClass: string;
@@ -14,9 +18,12 @@ type ChatFormProps = {
   loadingPlaceholder?: string;
   defaultPlaceholder?: string;
   afterSubmitPlaceholder?: string;
+  collectionFiles: CollectionFile[];
+  handleFileDelete: (fileName: string) => void;
   hasMessages: boolean;
-  totalUploadedFiles: File[];
   isLoading: boolean;
+  queryMode: QueryMode;
+  setQueryMode: (mode: QueryMode) => void;
 };
 
 export function ChatForm({
@@ -30,11 +37,15 @@ export function ChatForm({
   loadingPlaceholder = "답변 생성 중입니다.",
   defaultPlaceholder = "금융과 관련해 질문해주세요.",
   afterSubmitPlaceholder = "추가 질문을 입력하세요.",
+  collectionFiles,
+  handleFileDelete,
   hasMessages,
-  totalUploadedFiles,
   isLoading,
+  queryMode,
+  setQueryMode,
 }: ChatFormProps) {
   const [showUploadText, setShowUploadText] = useState(false);
+  const { deleteFile, isDeleteLoading, isSuccess, error } = useDeleteFile();
 
   const placeholder =
     isLoading && inputValue === ""
@@ -47,7 +58,10 @@ export function ChatForm({
     <div className={inputContainerClass}>
       <div className="w-full flex gap-2 mb-2">
         <div className="flex flex-1 gap-2 border rounded-lg">
-          <RAGDropdown hasMessages={hasMessages} />
+          <RAGDropdown
+            hasMessages={hasMessages}
+            onSelect={(selectedValue) => setQueryMode(selectedValue)}
+          />
           <textarea
             ref={textareaRef}
             value={inputValue}
@@ -72,22 +86,33 @@ export function ChatForm({
               <div
                 className={`${
                   hasMessages ? "bottom-full mb-2" : "top-full mt-2"
-                } right-0 w-64 text-center absolute bg-white border border-gray-300 rounded shadow-md p-2 cursor-pointer`}
-                onClick={() => {
-                  handleOpenModal();
-                  setShowUploadText(false);
-                }}
+                } right-0 w-64 text-center absolute bg-white border border-gray-300 rounded shadow-md p-2`}
               >
                 <div className="mb-2 py-2 border-b">
-                  {totalUploadedFiles.length > 0 ? (
-                    <p className="text-gray-600">
-                      {totalUploadedFiles.length}개의 파일이 업로드되었습니다.
-                    </p>
+                  {collectionFiles && collectionFiles.length > 0 ? (
+                    collectionFiles.map((file, index) => (
+                      <UploadFile
+                        index={index}
+                        fileName={file.file_name}
+                        onDelete={() => {
+                          deleteFile(file.file_name);
+                          handleFileDelete(file.file_name);
+                        }}
+                      />
+                    ))
                   ) : (
                     <p className="text-gray-600">업로드된 파일이 없습니다.</p>
                   )}
                 </div>
-                다른 데이터 업로드 하기
+                <div
+                  className="cursor-pointer"
+                  onClick={() => {
+                    handleOpenModal();
+                    setShowUploadText(false);
+                  }}
+                >
+                  다른 데이터 업로드 하기
+                </div>
               </div>
             )}
           </div>

@@ -12,10 +12,9 @@ import { LoadingSpinner } from "../components/LoadingSpinner.tsx";
 type Message = {
   id: number;
   type: "question" | "answer" | "loading";
-  text: string | React.ReactNode; 
+  text: string | React.ReactNode;
   isStreaming?: boolean;
 };
-
 
 function Report() {
   const getDeviceType = () => {
@@ -29,6 +28,9 @@ function Report() {
   const [searchTerm, setSearchTerm] = useState(""); // 입력 폼 값
   const [submittedTerm, setSubmittedTerm] = useState(""); // fetch에 사용
   const [tableSearch, setTableSearch] = useState(""); // 테이블 내부 검색
+  const [reportStatus, setReportStatus] = useState<
+    "idle" | "success" | "error"
+  >("idle");
 
   const { messages, setMessages } = useChat();
   const chatEndRef = useRef<null | HTMLDivElement>(null);
@@ -48,6 +50,7 @@ function Report() {
   const handleNewReport = () => {
     setMessages([]);
     localStorage.removeItem("chatMessages");
+    setReportStatus("idle");
   };
 
   useEffect(() => {
@@ -64,7 +67,9 @@ function Report() {
     const loadingAnswer: Message = {
       id: loadingAnswerId,
       type: "answer",
-      text: <LoadingSpinner loadingText="답변을 생성 중입니다. 잠시만 기다려주세요."/>,
+      text: (
+        <LoadingSpinner loadingText="답변을 생성 중입니다. 잠시만 기다려주세요." />
+      ),
     };
 
     setMessages((prev) => [...prev, loadingAnswer]);
@@ -79,6 +84,7 @@ function Report() {
       );
       if (!response.ok) throw new Error("네트워크 응답이 실패했습니다.");
       const data = await response.text();
+      setReportStatus("success");
 
       setMessages((prev) =>
         prev.map((msg) =>
@@ -86,17 +92,9 @@ function Report() {
         )
       );
     } catch (err) {
+      alert("입력하신 기업 코드로 검색된 리포트 정보가 없습니다.");
       console.error("답변을 가져오는 데 실패했습니다:", err);
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === loadingAnswerId
-            ? {
-                ...msg,
-                text: "답변을 가져오는 데 실패했습니다. 기업 코드를 올바르게 작성했는지 확인해주세요.",
-              }
-            : msg
-        )
-      );
+      setReportStatus("error");
     }
   };
 
@@ -109,7 +107,7 @@ function Report() {
 
   return (
     <div className="w-full flex flex-col justify-center items-start min-h-screen bg-white font-sans">
-      {hasMessages ? (
+      {reportStatus === "success" ? (
         <>
           <main className="w-full flex-1 overflow-y-auto pb-32">
             <div className={messageListClass}>
@@ -125,25 +123,28 @@ function Report() {
                           : "w-full"
                       }`}
                     >
-                      
-                    {typeof msg.text === "string" ? (
-                      <div className="prose max-w-none w-full">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            a: ({ node, ...props }) => (
-                              <a {...props} target="_blank" rel="noopener noreferrer">
-                                {props.children}
-                              </a>
-                            ),
-                          }}
-                        >
-                          {msg.text}
-                        </ReactMarkdown>
-                      </div>
-                    ) : (
-                      msg.text
-                    )}
+                      {typeof msg.text === "string" ? (
+                        <div className="prose max-w-none w-full">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              a: ({ node, ...props }) => (
+                                <a
+                                  {...props}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  {props.children}
+                                </a>
+                              ),
+                            }}
+                          >
+                            {msg.text}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        msg.text
+                      )}
                     </div>
                   );
                 })}
@@ -184,8 +185,12 @@ function Report() {
                     if (e.key === "Enter") handleCorpSearch();
                   }}
                 />
-                <button type="button" onClick={handleCorpSearch} className={`px-5 py-3 text-white font-bold rounded-lg self-end bg-indigo-500 hover:bg-indigo-600 transform transition-transform duration-200 hover:scale-105 active:scale-95}`}>
-                  <SendHorizonal/>
+                <button
+                  type="button"
+                  onClick={handleCorpSearch}
+                  className={`px-5 py-3 text-white font-bold rounded-lg self-end bg-indigo-500 hover:bg-indigo-600 transform transition-transform duration-200 hover:scale-105 active:scale-95}`}
+                >
+                  <SendHorizonal />
                 </button>
               </div>
 
