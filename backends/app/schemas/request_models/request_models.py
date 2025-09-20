@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import List
 
 class WebSearchRequest(BaseModel):
-    question: str
+    query: str
 
 class RAGRequest(BaseModel):
     query: str

@@ -51,10 +51,10 @@ class web_agent_workflow:
                 q.strip() for q in rewritten_queries_str.strip().split("\n") if q.strip()
             ]
             queries = queries[:4]  # 최대 4개로 제한
-
+            self.test = queries
             print(f"[INFO] 생성된 검색어 {len(queries)}개: {queries}")
             return {"generated_queries": queries}
-
+        
         except Exception as e:
             print(f"[오류] 검색어 생성 중 오류 발생: {e}")
             return {"generated_queries": []}
