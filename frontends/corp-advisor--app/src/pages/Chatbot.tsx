@@ -7,7 +7,7 @@ import { Modal } from "../components/steps/Modal.tsx";
 import { PdfViewer } from "../components/PdfViewer.tsx";
 import { LoadingSpinner } from "../components/LoadingSpinner.tsx";
 import { Message } from "../ChatContext"
-import { RAGDropdown } from "../components/RAGDropdown.tsx";
+
 // 출처
 type RetrievedDoc = {
   name: string;
@@ -328,11 +328,8 @@ function Chatbot() {
             <h1 className="text-4xl font-bold text-gray-800">금융 자문 챗봇</h1>
             <p className="text-gray-500 mt-2">CorpAdvisor</p>
           </header>
-          <div className={inputContainerClass}>
-            <RAGDropdown />
-          </div>
           {isModalOpen && renderModal()}
-          <div className="w-full">{renderChatForm()}</div>
+          {renderChatForm()}
         </div>
       )}
     </div>

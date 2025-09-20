@@ -2,9 +2,14 @@ import React, {useState, useRef, useEffect} from "react";
 
 const options = ["간단 RAG", "심화 RAG", "RAG 3번"];
 
-export function RAGDropdown({onSelect} : {
+type RAGDropdownProps = {
   onSelect: (value : string) => void;
-}) {
+  hasMessages: boolean;
+}
+
+export function RAGDropdown({onSelect, hasMessages} : 
+  RAGDropdownProps
+) {
   const [isOpen, setIsOpen] = useState(false);
   const [selected, setSelected] = useState < string | null > (null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -26,13 +31,13 @@ export function RAGDropdown({onSelect} : {
     onSelect(option);
   };
 
-  return (<div ref={dropdownRef} className="relative flex-1 justify-start">
-    <button onClick={() => setIsOpen((prev) => !prev)} className="p-2 border rounded bg-white text-left">
+  return (<div ref={dropdownRef} className="relative">
+    <button onClick={() => setIsOpen((prev) => !prev)} className="p-3 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none overflow-y-hidden border-none">
       {selected || "RAG 선택"}
     </button>
 
     {
-      isOpen && (<ul className="absolute w-full bg-white border rounded mt-1 shadow-lg z-10">
+      isOpen && (<ul className={`${hasMessages ? 'bottom-full mb-2' : 'top-full mt-2'} absolute bg-white border rounded mt-1 shadow-lg z-10`}>
         {
           options.map((option) => (<li key={option} className="p-2 hover:bg-indigo-100 cursor-pointer" onClick={() => handleSelect(option)}>
             {option}

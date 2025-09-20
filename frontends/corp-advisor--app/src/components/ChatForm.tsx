@@ -1,6 +1,7 @@
 import React, {useState} from "react";
 import {FooterText} from "./FooterText";
 import { Upload, SendHorizonal } from "lucide-react";
+import { RAGDropdown } from "./RAGDropdown";
 
 type ChatFormProps = {
   inputContainerClass: string;
@@ -42,8 +43,9 @@ export function ChatForm({
       : defaultPlaceholder;
 
   return (<div className={inputContainerClass}>
-    <div className="flex gap-2 mb-2">
+    <div className="w-full flex gap-2 mb-2">
       <div className="flex flex-1 gap-2 border rounded-lg">
+        <RAGDropdown hasMessages={hasMessages}/>
         <textarea ref={textareaRef} value={inputValue} onChange={onChange} onKeyDown={onKeyDown} placeholder={placeholder} disabled={isLoading} className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none overflow-y-hidden border-none" rows={1}/>{" "}
         {/* 파일 아이콘 클릭 시 문구 토글 */}
         <div className="relative">
@@ -52,7 +54,7 @@ export function ChatForm({
           </button>
 
           {
-            showUploadText && (<div className="w-64 text-center absolute left-0 bg-white border border-gray-300 rounded shadow-md p-2 cursor-pointer" onClick={() => {
+            showUploadText && (<div className={`${hasMessages ? 'bottom-full mb-2' : 'top-full mt-2'} right-0 w-64 text-center absolute bg-white border border-gray-300 rounded shadow-md p-2 cursor-pointer`} onClick={() => {
                 handleOpenModal();
                 setShowUploadText(false);
               }}>
