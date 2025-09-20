@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 from langgraph.graph import StateGraph, START, END
-from app.core.llm.llm import Midm
+from app.core.llm.llm import Midm, SK, LG
 from app.core.web_search_agent.embedding import get_naver_embedding, cosine_similarity
 from app.core.web_search_agent.web_search import WebSearchTool
 from app.schemas.langraph_states.state_models import web_agent_state
@@ -15,9 +15,22 @@ class web_agent_workflow:
     전체 프로세스를 상태 기반으로 관리합니다.
     """
 
-    def __init__(self):
+    def __init__(self, llm_type="Midm", web_search_tool_class=None):
         load_dotenv()
-        self.llm = Midm()
+
+        # llm_type에 따라 적절한 LLM 인스턴스 생성
+        if llm_type == "SK":
+            self.llm = SK()
+        elif llm_type == "LG":
+            self.llm = LG()
+        else:  # 기본값은 Midm
+            self.llm = Midm()
+        
+        if web_search_tool_class is None:
+            self.web_search_tool_class = WebSearchTool
+        else:
+            self.web_search_tool_class = web_search_tool_class
+
         self.workflow = self.setup()
         self.similarity_threshold = 0.48
 
@@ -37,8 +50,8 @@ class web_agent_workflow:
             f"주어진 질문에 대해 답변하기 위해, 웹에서 검색할 검색어 4개를 생성하세요. "
             "절대 다른 설명을 추가하지 말고, 검색어만을 생성하세요. "
             "검색어를 작성 시, 되도록 최신 자료를 가져오도록 작성하세요. 오늘 날짜는 {today} 입니다."
-            f"특히 질문에 '최근', '현재' 같은 단어가 포함된 경우에는 검색어에 {today[0:5]}를 포함하세요. "
-        )
+            f"특히 질문에 '최근', '현재', '요즘'과 같은 단어가 포함된 경우에는 검색어에 {today[0:5]}를 포함하세요. "
+        )   
 
         try:
             rewritten_queries_str = await self.llm.acall(system_prompt=rewrite_prompt, user_input=f"질문: {question}")
@@ -79,7 +92,7 @@ class web_agent_workflow:
         try:
             # 각 쿼리마다 2개씩 검색하여 총 8개 문서 수집
             tasks = [
-                WebSearchTool(query=q, num_results=2).search_and_scrape()
+                self.web_search_tool_class(query=q, num_results=2).search_and_scrape()
                 for q in queries
             ]
             results = await asyncio.gather(*tasks)
