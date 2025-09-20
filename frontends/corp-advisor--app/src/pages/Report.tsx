@@ -8,6 +8,69 @@ import remarkGfm from "remark-gfm";
 import { SendHorizonal } from "lucide-react";
 import { LoadingSpinner } from "../components/LoadingSpinner.tsx";
 
+const HtmlWithScriptsRenderer = ({ htmlString }: { htmlString: string }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !htmlString) return;
+
+    // Clear previous content
+    container.innerHTML = "";
+
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = htmlString;
+
+    const scripts = Array.from(tempDiv.querySelectorAll("script"));
+    
+    // Append non-script HTML content first
+    const fragment = document.createDocumentFragment();
+    Array.from(tempDiv.childNodes).forEach(node => {
+        if (node.nodeName.toLowerCase() !== 'script') {
+            fragment.appendChild(node.cloneNode(true));
+        }
+    });
+    container.appendChild(fragment);
+    
+    const loadedScripts: HTMLScriptElement[] = [];
+
+    const executeScripts = async () => {
+      for (const script of scripts) {
+        const newScript = document.createElement("script");
+        script.getAttributeNames().forEach(attr => {
+          newScript.setAttribute(attr, script.getAttribute(attr) || "");
+        });
+        
+        if (script.src) {
+          await new Promise<void>((resolve, reject) => {
+            newScript.onload = () => resolve();
+            newScript.onerror = () => reject(new Error(`Script load error for ${script.src}`));
+            document.body.appendChild(newScript);
+            loadedScripts.push(newScript);
+          });
+        } else {
+          newScript.innerHTML = script.innerHTML;
+          document.body.appendChild(newScript);
+          loadedScripts.push(newScript);
+        }
+      }
+    };
+
+    executeScripts();
+
+    return () => {
+      loadedScripts.forEach(script => {
+        if (document.body.contains(script)) {
+          document.body.removeChild(script);
+        }
+      });
+    };
+  }, [htmlString]);
+
+  return <div ref={containerRef} className="prose max-w-none w-full" />;
+};
+
+
 // 메시지 타입 정의
 type Message = {
   id: number;
@@ -31,6 +94,7 @@ function Report() {
   const [reportStatus, setReportStatus] = useState<
     "idle" | "success" | "error"
   >("idle");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const { messages, setMessages } = useChat();
   const chatEndRef = useRef<null | HTMLDivElement>(null);
@@ -63,16 +127,7 @@ function Report() {
     const codeToUse = corpCode;
     if (!codeToUse?.trim()) return;
 
-    const loadingAnswerId = Date.now() + 1;
-    const loadingAnswer: Message = {
-      id: loadingAnswerId,
-      type: "answer",
-      text: (
-        <LoadingSpinner loadingText="답변을 생성 중입니다. 잠시만 기다려주세요." />
-      ),
-    };
-
-    setMessages((prev) => [...prev, loadingAnswer]);
+    setIsGenerating(true);
     setSearchTerm("");
 
     try {
@@ -86,15 +141,19 @@ function Report() {
       const data = await response.text();
       setReportStatus("success");
 
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === loadingAnswerId ? { ...msg, text: data } : msg
-        )
-      );
+      const reportAnswer: Message = {
+        id: Date.now(),
+        type: "answer",
+        text: data,
+      };
+
+      setMessages((prev) => [...prev, reportAnswer]); // Simplified: just add the final result
     } catch (err) {
       alert("입력하신 기업 코드로 검색된 리포트 정보가 없습니다.");
       console.error("답변을 가져오는 데 실패했습니다:", err);
       setReportStatus("error");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -124,24 +183,7 @@ function Report() {
                       }`}
                     >
                       {typeof msg.text === "string" ? (
-                        <div className="prose max-w-none w-full">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              a: ({ node, ...props }) => (
-                                <a
-                                  {...props}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  {props.children}
-                                </a>
-                              ),
-                            }}
-                          >
-                            {msg.text}
-                          </ReactMarkdown>
-                        </div>
+                        <HtmlWithScriptsRenderer htmlString={msg.text as string} />
                       ) : (
                         msg.text
                       )}
@@ -163,52 +205,56 @@ function Report() {
         </>
       ) : (
         <div className="w-full min-h-screen flex-1 flex justify-center items-center bg-gray-50">
-          <div className="flex flex-col justify-start items-start gap-2 p-4">
-            <header className="w-full text-center">
-              <h1 className="text-4xl font-bold text-gray-800 mb-2">
-                기업 보고서 생성
-              </h1>
-              <p className="text-gray-500">CorpAdvisor</p>
-            </header>
-            <main className="w-full max-w-screen-md">
-              <div className="overflow-x-auto w-full mb-4 flex gap-2 p-4">
-                <input
-                  type="text"
-                  className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                  placeholder="기업명을 입력하세요"
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value); // 입력값 상태
-                    setTableSearch(e.target.value); // 테이블 필터링
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleCorpSearch();
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={handleCorpSearch}
-                  className={`px-5 py-3 text-white font-bold rounded-lg self-end bg-indigo-500 hover:bg-indigo-600 transform transition-transform duration-200 hover:scale-105 active:scale-95}`}
-                >
-                  <SendHorizonal />
-                </button>
-              </div>
+          {isGenerating ? (
+            <LoadingSpinner loadingText="리포트를 생성중입니다..." />
+          ) : (
+            <div className="flex flex-col justify-start items-start gap-2 p-4">
+              <header className="w-full text-center">
+                <h1 className="text-4xl font-bold text-gray-800 mb-2">
+                  기업 보고서 생성
+                </h1>
+                <p className="text-gray-500">CorpAdvisor</p>
+              </header>
+              <main className="w-full max-w-screen-md">
+                <div className="overflow-x-auto w-full mb-4 flex gap-2 p-4">
+                  <input
+                    type="text"
+                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                    placeholder="기업명을 입력하세요"
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value); // 입력값 상태
+                      setTableSearch(e.target.value); // 테이블 필터링
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleCorpSearch();
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCorpSearch}
+                    className={`px-5 py-3 text-white font-bold rounded-lg self-end bg-indigo-500 hover:bg-indigo-600 transform transition-transform duration-200 hover:scale-105 active:scale-95}`}
+                  >
+                    <SendHorizonal />
+                  </button>
+                </div>
 
-              <Table
-                loading={corpLoading}
-                error={corpError}
-                data={corpData.filter((item) =>
-                  Object.values(item).some((v) =>
-                    String(v).toLowerCase().includes(tableSearch.toLowerCase())
-                  )
-                )}
-                isSearchInput={false}
-                searchTerm={tableSearch}
-                onSearchChange={setTableSearch}
-                onClick={generateReport}
-              />
-            </main>
-          </div>
+                <Table
+                  loading={corpLoading}
+                  error={corpError}
+                  data={corpData.filter((item) =>
+                    Object.values(item).some((v) =>
+                      String(v).toLowerCase().includes(tableSearch.toLowerCase())
+                    )
+                  )}
+                  isSearchInput={false}
+                  searchTerm={tableSearch}
+                  onSearchChange={setTableSearch}
+                  onClick={generateReport}
+                />
+              </main>
+            </div>
+          )}
         </div>
       )}
     </div>
