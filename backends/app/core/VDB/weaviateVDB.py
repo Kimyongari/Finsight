@@ -184,6 +184,25 @@ class VectorDB:
         else:
             raise ValueError("Collection이 지정되지 않았습니다. set_collection()으로 먼저 설정하세요.")
 
+    def delete_obejcts(self, filter: Filter = None):
+        if getattr(self.collection, 'exists', None):     
+            if not filter:
+                raise ValueError("입력된 filter가 없습니다.")
+            result = self.collection.data.delete_many(
+                where=filter,
+                # 즉시 삭제 결과를 반영해야 할 경우 아래 옵션을 사용합니다.
+                # consistency_level=wvc.ConsistencyLevel.ALL
+            )
+            print(f'{filter.target} : {filter.value}에 해당하는 object를 전부 삭제하였습니다.')
+
+        else:
+            raise ValueError("Collection이 지정되지 않았습니다. set_collection()으로 먼저 설정하세요.")
+
+    def delete_objects_from_file_name(self, file_name):
+        filter = Filter.by_property("file_name").equal(file_name)
+        self.delete_obejcts(filter = filter)
+        
+
 # BM25 Search
     def query_bm25(self, query: str, topk: int = 4, fields: list = None):
         if getattr(self.collection, 'exists', None):     
@@ -259,10 +278,17 @@ class VectorDB:
             raise ValueError("Collection이 지정되지 않았습니다. set_collection()으로 먼저 설정하세요.")
 
 
-    def view_files_in_collection(self, collection_name:str = None):
-        if collection_name:
-            self.set_collection(collection_name)
-        else:
-            self.set_collection("LegalDB")
+    def show_files_in_collection(self):
+        if getattr(self.collection, 'exists', None):     
+            response = self.collection.aggregate.over_all(group_by = "file_name")
+            unique_file_name_and_chunk = []
+            for g in response.groups:
+                file_name = g.grouped_by.value
+                chunk_count = g.total_count
+                unique_file_name_and_chunk.append({'file_name' : file_name, 'chunk_count' : chunk_count})
 
-        
+            return unique_file_name_and_chunk
+        else:
+            raise ValueError("Collection이 지정되지 않았습니다. set_collection()으로 먼저 설정하세요.")
+
+            

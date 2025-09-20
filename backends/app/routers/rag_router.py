@@ -3,8 +3,9 @@ from fastapi import APIRouter
 from ..services.rag_service import RagService
 from ..services.vanilla_rag_workflow_service import vanilla_rag_workflow
 from ..services.advanced_rag_workflow_service import advanced_rag_workflow
-from ..schemas.request_models.request_models import RAGRequest, RegisterRequest
-from ..schemas.response_models.response_models import RAGResponse, RegisterResponse, ResetResponse, InitResponse, AdvancedRAGResponse
+from ..schemas.request_models.request_models import RAGRequest, RegisterRequest,DeleteObjectsRequest
+from ..schemas.response_models.response_models import RAGResponse, RegisterResponse, ResetResponse, InitResponse, AdvancedRAGResponse, ShowResponse, DeleteObjectsResponse
+from ..services.vdb_service import VDBService
 
 router = APIRouter()
 
@@ -37,7 +38,7 @@ async def query_rag(request: RAGRequest) -> AdvancedRAGResponse:
 @router.post("/register")
 async def register(request: RegisterRequest) -> RegisterResponse:
     file_names = request.file_name
-    service = RagService()
+    service = VDBService()
     for file_name in file_names:
         result = service.register(file_name = file_name)
         if result['success']:
@@ -50,7 +51,7 @@ async def register(request: RegisterRequest) -> RegisterResponse:
 
 @router.get("/reset")
 async def reset():
-    service = RagService()
+    service = VDBService()
     result = service.reset()
     if result['success']:
         return ResetResponse(success = True, msg = 'VDB를 성공적으로 리셋하였습니다.') 
@@ -59,9 +60,28 @@ async def reset():
     
 @router.get("/initialize")
 async def initalize():
-    service = RagService()
+    service = VDBService()
     result = service.initialize()
     if result['success']:
         return InitResponse(success = True, msg = f"pdf폴더 내에 존재하는 법령 문서를 전부 적재하였습니다. \n적재된파일\n {result['files']}")
     else:
         return InitResponse(success = False, msg = result['err_msg'])
+    
+@router.get("/show_files_in_collection")    
+async def show_files_in_collection() -> ShowResponse:
+    service = VDBService()
+    result = service.show_files_in_collection()
+    if result['success']:
+        return ShowResponse(success = True, msg = "collection 내에 존재하는 file과 chunk 수를 불러오는 데에 성공하였습니다.", unique_file_name_and_chunk = result['unique_file_name_and_chunk'])
+    else:
+        return ShowResponse(success = False, msg = result['err_msg'], unique_file_name_and_chunk = [])
+    
+@router.post("/delete_objects_from_file_name")
+async def delete_objects_from_file_name(request:DeleteObjectsRequest) -> DeleteObjectsResponse:
+    service = VDBService()
+    file_name = request.file_name
+    result = service.delete_objects_from_file_name(file_name = file_name)
+    if result['success']:
+        return DeleteObjectsResponse(success = True, msg = f"{file_name}에 해당하는 objects들을 전부 삭제하였습니다.")
+    else:
+        return DeleteObjectsResponse(success = False, msg = result['err_msg'])

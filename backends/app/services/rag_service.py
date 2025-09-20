@@ -35,15 +35,6 @@ class RagService:
         except Exception as e:
             return {'success' : False, 'err_msg' : str(e)}
     
-    def show_collections(self):
-        return self.vdb.show_collection()
-    
-    def set_collection(self, name:str):
-        try:
-            self.vdb.set_collection(name)
-            return {'success': True}
-        except Exception as e:
-            return {'success' : False, 'err_msg' : str(e)}
 
     def generate_answer(self, query:str) -> dict:
         result = self.retriever(query = query, topk = 4)
@@ -87,83 +78,3 @@ class RagService:
         else:
             return {'success' : False, 'err_msg' : 'Retriever에 실패하였습니다. VDB에 적재된 문서가 있는지 확인해 주세요.'}
 
-    def initialize(self):
-        try:
-            paths = glob('./pdfs/*.pdf')
-            files = [path.split('/')[-1] for path in paths]
-            self.vdb.reset()
-            properties=[
-                Property(name="text", data_type=DataType.TEXT),
-                Property(name="n_char", data_type=DataType.INT),
-                Property(name="n_word", data_type=DataType.INT),
-                Property(name="i_page", data_type=DataType.INT),
-                Property(name="i_chunk_on_page", data_type=DataType.INT),
-                Property(name="n_chunk_of_page", data_type=DataType.INT),
-                Property(name="i_chunk_on_doc", data_type=DataType.INT),
-                Property(name="n_chunk_of_doc", data_type=DataType.INT),
-                Property(name="n_page", data_type=DataType.INT),
-                Property(name="name", data_type=DataType.TEXT),
-                Property(name="file_path", data_type=DataType.TEXT),
-                Property(name='file_name', data_type=DataType.TEXT)
-            ]
-            self.vdb.create_collection(name = 'LegalDB', properties=properties)
-            self.vdb.set_collection('LegalDB')
-            processor = DocumentProcessor()
-            all_chunks = []
-            for path in paths:
-                chunks = processor.preprocess(file_path = path)
-                all_chunks += chunks
-            objects = [{'text' : chunk.text,
-                        'n_char' : chunk.n_char,
-                        'n_word' : chunk.n_word,
-                        'i_page' : chunk.i_page,
-                        'i_chunk_on_page' : chunk.i_chunk_on_page,
-                        'n_chunk_of_page' : chunk.n_chunk_of_page,
-                        'i_chunk_on_doc' : chunk.i_chunk_on_doc,
-                        'n_chunk_of_doc' : chunk.n_chunk_of_doc,
-                        'n_page' : chunk.n_page,
-                        'name' : chunk.name,
-                        'file_path' : chunk.file_path,
-                         'file_name' : chunk.file_name } for chunk in all_chunks]
-            self.vdb.add_objects(objects = objects)
-            return {'success' : True, 'files' : paths}
-        
-        except Exception as e:
-            print('Error during initialization:', str(e))
-            return {'success' : False, 'err_msg' : str(e)}
-        
-    def register(self, file_name):
-        path = f'./pdfs/{file_name}'
-        try:
-            processor = DocumentProcessor()
-            chunks = processor.preprocess(file_path = path)
-            if self.vdb.check(name = 'LegalDB'):
-                objects = [{'text' : chunk.text,
-                            'n_char' : chunk.n_char,
-                            'n_word' : chunk.n_word,
-                            'i_page' : chunk.i_page,
-                            'i_chunk_on_page' : chunk.i_chunk_on_page,
-                            'n_chunk_of_page' : chunk.n_chunk_of_page,
-                            'i_chunk_on_doc' : chunk.i_chunk_on_doc,
-                            'n_chunk_of_doc' : chunk.n_chunk_of_doc,
-                            'n_page' : chunk.n_page,
-                            'name' : chunk.name,
-                            'file_path' : chunk.file_path,
-                             'file_name' : chunk.file_name } for chunk in chunks]
-                self.vdb.add_objects(objects = objects)
-                return {'success' : True}
-            else:
-                return {'success' : False}
-    
-        except Exception as e:
-            print('Error during initialization:', str(e))
-            return {'success' : False, 'err_msg' : str(e)}
-        
-    def reset(self):
-        try:        
-            self.vdb.reset()
-            return {'success': True}
-        except Exception as e:
-            return {'success' : False, 'err_msg' : f'reset에 실패하였습니다. 오류 : {e}'}
-        
-    
