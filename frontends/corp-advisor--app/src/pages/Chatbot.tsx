@@ -6,7 +6,7 @@ import { Bubble } from "../components/Bubble.tsx";
 import { Modal } from "../components/steps/Modal.tsx";
 import { PdfViewer } from "../components/PdfViewer.tsx";
 import { LoadingSpinner } from "../components/LoadingSpinner.tsx";
-import { Message } from "../ChatContext"
+import { Message } from "../ChatContext";
 
 // 출처
 type RetrievedDoc = {
@@ -20,23 +20,23 @@ const initialMessages: Message[] = [];
 function Chatbot() {
   const exampleDocs = [
     {
-      name: '전자 금융 감독',
+      name: "전자 금융 감독",
       i_page: 3,
-      file_path: '/1111.pdf'
+      file_path: "/1111.pdf",
     },
     {
-      name: '예시 2',
+      name: "예시 2",
       i_page: 2,
-      file_path: '/121.pdf'
+      file_path: "/121.pdf",
     },
     {
-      name: '예시 3',
+      name: "예시 3",
       i_page: 5,
-      file_path: '/121.pdf'
+      file_path: "/121.pdf",
     },
-  ]
-  const [retrievedDocs, setRetrievedDocs] = useState<RetrievedDoc[]>(exampleDocs);
-
+  ];
+  const [retrievedDocs, setRetrievedDocs] =
+    useState<RetrievedDoc[]>(exampleDocs);
   // 디바이스 크기
   const getDeviceType = () => {
     const width = window.innerWidth;
@@ -60,7 +60,7 @@ function Chatbot() {
   }, []);
 
   const inputContainerClass =
-    deviceType === "mobile" ? "w-full" : "w-2/3 mx-auto";
+    deviceType === "mobile" ? "w-full" : "w-3/4 mx-auto";
 
   const messageListClass =
     deviceType === "mobile" ? "p-4" : "w-1/2 mx-auto p-4";
@@ -94,7 +94,9 @@ function Chatbot() {
     const loadingAnswer: Message = {
       id: loadingAnswerId,
       type: "loading",
-      text: <LoadingSpinner loadingText="답변을 생성 중입니다. 잠시만 기다려주세요." />,
+      text: (
+        <LoadingSpinner loadingText="답변을 생성 중입니다. 잠시만 기다려주세요." />
+      ),
       isStreaming: true,
     };
 
@@ -113,6 +115,7 @@ function Chatbot() {
 
       // 출처 업데이트
       setRetrievedDocs(data.retrieved_documents || exampleDocs);
+
       console.log("출처 문서:", data.retrieved_documents);
       setTypingTextMap((prev) => ({ ...prev, [loadingAnswerId]: data.answer })); // 전체 답변 텍스트를 임시 상태에 저장, 타이핑 효과
     } catch (err) {
@@ -244,7 +247,7 @@ function Chatbot() {
   // PDF 뷰어 상태 관리
   const [isPdfVisible, setIsPdfVisible] = useState(false);
   const handleClosePdf = () => setIsPdfVisible(false);
-  
+
   // PDF 페이지
   const [pageNum, setPageNum] = useState(1);
   const [pdfWidth, setPdfWidth] = useState(400); // 초기 폭 (px)
@@ -266,10 +269,16 @@ function Chatbot() {
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
   };
-    // Bubble에서 클릭될 때 호출되는 핸들러
+  // Bubble에서 클릭될 때 호출되는 핸들러
   const handleCiteClick = (page: number) => {
-    setPageNum(page); // PdfViewer에 넘길 페이지 번호 업데이트
-    setIsPdfVisible(true);
+    // 이미 같은 페이지를 보고 있으면 토글
+    if (pageNum === page) {
+      setIsPdfVisible((prev) => !prev); // 열려있으면 닫고, 닫혀있으면 열고
+    } else {
+      // 다른 페이지를 클릭하면 해당 페이지로 바꾸면서 열기
+      setPageNum(page);
+      setIsPdfVisible(true);
+    }
   };
 
   return (
@@ -304,8 +313,15 @@ function Chatbot() {
                   className="w-1 bg-gray-300 cursor-col-resize"
                   onMouseDown={handleMouseDown}
                 />
-                <div style={{width: pdfWidth}} className="w-1/2 scrollbar-hide max-h-[calc(100vh-4rem)] overflow-auto bg-gray-100 p-2">
-                  <PdfViewer initialPage={pageNum} onPageChange={setPageNum} onClose={handleClosePdf} />
+                <div
+                  style={{ width: pdfWidth }}
+                  className="w-1/2 scrollbar-hide max-h-[calc(100vh-4rem)] overflow-auto bg-gray-100 p-2"
+                >
+                  <PdfViewer
+                    initialPage={pageNum}
+                    onPageChange={setPageNum}
+                    onClose={handleClosePdf}
+                  />
                 </div>
               </>
             )}

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Message } from "../ChatContext";
@@ -30,6 +30,17 @@ export function Bubble({
 }: BubbleProps) {
   const renderContent = () => {
     // 문자열이면 ReactMarkdown 사용, JSX이면 그대로 렌더링
+    const [textVisibleMap, setTextVisibleMap] = useState<{
+      [key: string]: boolean;
+    }>({});
+
+    const handleTextVisible = (key: string) => {
+      setTextVisibleMap((prev) => ({
+        ...prev,
+        [key]: !prev[key], // 기존 값이 true면 false로, false면 true로 토글
+      }));
+    };
+
     if (typeof msg.text === "string") {
       return (
         <>
@@ -38,18 +49,34 @@ export function Bubble({
               {msg.text + (msg.isStreaming ? "\n" : "")}
             </ReactMarkdown>
           </div>
-          <hr />
-          <div className="flex flex-col gap-2 text-sm">
-            {cites.map((cite) => (
-              <button
-                key={cite.name + cite.i_page}
-                onClick={() => onCiteClick(cite.i_page)}
-                className="text-left"
-              >
-                {cite.name}
-              </button>
-            ))}
-          </div>
+          {!msg.isStreaming && (
+            <>
+              <hr />
+              <div className="flex flex-col gap-2 text-sm">
+                {cites.map((cite) => {
+                  const key = cite.name + cite.i_page;
+                  return (
+                    <div key={key}>
+                      <button
+                        onClick={() => {
+                          onCiteClick(cite.i_page);
+                          handleTextVisible(key);
+                        }}
+                        className="text-left"
+                      >
+                        {cite.name}
+                      </button>
+                      {textVisibleMap[key] && (
+                        <div style={{ whiteSpace: "pre-wrap" }}>
+                          {cite.text}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </>
       );
     } else {
