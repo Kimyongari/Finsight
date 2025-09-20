@@ -198,11 +198,6 @@ class VectorDB:
         else:
             raise ValueError("Collection이 지정되지 않았습니다. set_collection()으로 먼저 설정하세요.")
 
-    def delete_objects_from_file_name(self, file_name):
-        filter = Filter.by_property("file_name").equal(file_name)
-        self.delete_obejcts(filter = filter)
-        
-
 # BM25 Search
     def query_bm25(self, query: str, topk: int = 4, fields: list = None):
         if getattr(self.collection, 'exists', None):     
