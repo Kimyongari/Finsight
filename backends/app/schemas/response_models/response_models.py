@@ -8,7 +8,7 @@ class RAGResponse(BaseModel):
 class AdvancedRAGResponse(BaseModel):
     answer: str
     success: bool
-    retrieved_documnets: list[dict]
+    retrieved_documents: list[dict]
     references: list[dict]
 
 class StatementResponse(BaseModel):
