@@ -175,7 +175,7 @@ class DocumentProcessor:
                                 'n_chunk_of_doc': 0,  # 아래에서 채움
                                 'n_page': len(doc) + index,
                                 'name' : name,
-                                'file_path' : self.file_path
+                                'file_path' : self.file_path[1:]
                             }))
                             chunk_idx += 1
 
