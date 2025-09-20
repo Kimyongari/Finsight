@@ -1,10 +1,11 @@
 import plotly.graph_objects as go
 import plotly.io as pio
+from bs4 import BeautifulSoup
 
 
-async def generate_chart_html(chart_data: dict, file_path: str) -> None:
+async def generate_chart_html(chart_data: dict) -> str:
     """
-    차트 데이터를 기반으로 Plotly 그래프를 생성하고 HTML 파일로 저장합니다.
+    차트 데이터를 기반으로 Plotly 그래프를 생성하고 HTML 문자열을 반환합니다.
     선그래프, 막대그래프, 듀얼차트(토글 가능)를 지원하며, 마우스 호버 시 상세 정보를 보여줍니다.
 
     Args:
@@ -15,7 +16,9 @@ async def generate_chart_html(chart_data: dict, file_path: str) -> None:
                            - chart_type: 'line' (기본값), 'bar', 또는 'dual'
                            - bar_data: 막대그래프 데이터 (dual용)
                            - line_data: 선그래프 데이터 (dual용)
-        file_path (str): 차트를 저장할 HTML 파일의 경로.
+
+    Returns:
+        str: 차트가 포함된 완전한 HTML 문자열
     """
     title = chart_data.get("title", "차트 제목")
     chart_type = chart_data.get("chart_type", "line")
@@ -119,7 +122,8 @@ async def generate_chart_html(chart_data: dict, file_path: str) -> None:
             })
 
     fig.update_layout(**layout_updates)
-    pio.write_html(fig, file=file_path, auto_open=False, include_plotlyjs="cdn")
+    html_content = pio.to_html(fig, include_plotlyjs="cdn", config={'displayModeBar': False})
+    return extract_main_content(html_content)
 
 
 def _add_bar_traces(fig: go.Figure, bar_data: dict, visible: bool = True, name_prefix: str = ""):
@@ -310,3 +314,18 @@ def _add_profitability_line_trace(fig: go.Figure, x_values: list, trace_name: st
             hovertemplate=hovertemplate,
         )
     )
+
+
+def extract_main_content(html_content: str) -> str:
+    """
+    HTML 전체에서 <body> 내부의 실제 콘텐츠만 추출하는 함수
+    """
+    soup = BeautifulSoup(html_content, "lxml")
+
+    body = soup.find("body")
+    if not body:
+        raise ValueError("HTML에 <body> 태그가 없습니다.")
+
+    main_content = "".join(str(child) for child in body.contents if child.name or child.strip())
+
+    return main_content.strip()

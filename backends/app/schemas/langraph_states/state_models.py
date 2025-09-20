@@ -17,7 +17,8 @@ class report_workflow_state(BaseModel):
     Attributes:
         corp_code: 8자리 기업 코드 (예: "00126380")
         company_info: DART에서 추출한 기업 기본 정보
-        financial_statement: 재무제표 원문 데이터
+        financial_statement: 재무제표 마크다운 데이터 (LLM 분석용)
+        financial_statement_html: 재무제표 HTML 데이터 (최종 보고서용)
         news_data: 웹에서 수집한 원본 뉴스 데이터
         analyzed_news: 분류/요약/분석된 뉴스 데이터
         financial_features: 재무제표에서 추출한 주요 지표
@@ -26,11 +27,12 @@ class report_workflow_state(BaseModel):
         financial_chart_html: 재무 지표 차트 HTML 링크
         profitability_chart_html: 수익성 지표 차트 HTML 링크
         conclusion: LLM이 생성한 종합 결론
-        final_report: 완성된 마크다운 보고서
+        final_report: 완성된 HTML 보고서
     """
     corp_code: str
     company_info: dict = {}
     financial_statement: str = ""
+    financial_statement_html: str = ""
     news_data: list = []
     analyzed_news: list = []
     financial_features: dict = {}

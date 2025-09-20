@@ -16,3 +16,4 @@ ipykernel
 PyMuPDF
 OpenDartReader
 tabulate
+markdown

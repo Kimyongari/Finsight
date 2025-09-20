@@ -7,12 +7,13 @@ from app.core.financial_searchengine.dart_extractor import DartExtractor
 from app.core.financial_searchengine.financial_statements_extractor import (
     financial_statements_extractor,
 )
-from app.core.web_search_agent.web_search import WebSearchTool
+from app.core.web_search_agent.news_search import NewsSearchTool
 from app.core.chart_generator import generate_chart_html
 from app.schemas.langraph_states.state_models import report_workflow_state
 from pykrx import stock
 import re
 import json
+import markdown
 from dotenv import load_dotenv
 
 
@@ -20,7 +21,7 @@ class report_workflow:
     """LangGraph 기반 기업 분석 보고서 생성 워크플로우.
 
     기업 코드를 입력받아 기업 정보, 재무 데이터, 뉴스 분석, 차트 생성,
-    종합 결론까지 포함한 완전한 분석 보고서를 마크다운 형식으로 생성합니다.
+    종합 결론까지 포함한 완전한 분석 보고서를 HTML 형식으로 생성합니다.
     """
 
     def __init__(self):
@@ -62,11 +63,17 @@ class report_workflow:
 
         company_name = company_info.get("corp_name", "알 수 없음")
         news_search_query = f"{company_name} 최신 뉴스"
+        print(f"[DEBUG] 뉴스 검색 쿼리: {news_search_query}")
 
-        web_search_tool = WebSearchTool(
+        news_search_tool = NewsSearchTool(
             query=news_search_query, num_results=20, time_period_months=3
         )
-        scraped_news = await web_search_tool.search_and_scrape()
+        scraped_news = await news_search_tool.search_and_scrape()
+
+        print(f"[DEBUG] 수집된 뉴스 개수: {len(scraped_news) if scraped_news else 0}")
+        if scraped_news:
+            for i, news in enumerate(scraped_news[:3]):  # 처음 3개만 로그 출력
+                print(f"[DEBUG] 뉴스 {i+1}: {news.get('title', '제목없음')} | 날짜: {news.get('publish_date', '날짜없음')}")
 
         return {"news_data": scraped_news if scraped_news else []}
 
@@ -77,11 +84,15 @@ class report_workflow:
             state: corp_code를 포함한 워크플로우 상태
 
         Returns:
-            financial_statement가 업데이트된 상태
+            financial_statement과 financial_statement_html이 업데이트된 상태
         """
         corp_code = state.corp_code
-        financial_statement = self.financial_extractor.extract_statement(corp_code=corp_code)
-        return {"financial_statement": financial_statement}
+        financial_statement = self.financial_extractor.extract_statement(corp_code=corp_code, mode='markdown')
+        financial_statement_html = self.financial_extractor.extract_statement(corp_code=corp_code, mode='html')
+        return {
+            "financial_statement": financial_statement,
+            "financial_statement_html": financial_statement_html
+        }
 
     async def news_analyzer(self, state: report_workflow_state) -> report_workflow_state:
         """수집된 뉴스를 분류, 선별, 요약 및 영향 분석.
@@ -235,12 +246,21 @@ class report_workflow:
         - **현금흐름:** 영업활동 현금흐름이 [플러스/마이너스]를 기록하여 [긍정적/부정적]이며, 대규모 투자로 인해 투자활동 현금흐름 유출이 지속되고 있습니다.
 
         ### SWOT 분석 및 전략 제언
-        | 구분 | 핵심 내용 |
-        | :--- | :--- |
-        | **강점 (Strengths)** | (분석된 강점 1)<br>(분석된 강점 2) |
-        | **약점 (Weaknesses)** | (분석된 약점 1)<br>(분석된 약점 2) |
-        | **기회 (Opportunities)**| (분석된 기회 1)<br>(분석된 기회 2) |
-        | **위협 (Threats)** | (분석된 위협 1)<br>(분석된 위협 2) |
+        **강점 (Strengths):**
+        - (분석된 강점 1)
+        - (분석된 강점 2)
+
+        **약점 (Weaknesses):**
+        - (분석된 약점 1)
+        - (분석된 약점 2)
+
+        **기회 (Opportunities):**
+        - (분석된 기회 1)
+        - (분석된 기회 2)
+
+        **위협 (Threats):**
+        - (분석된 위협 1)
+        - (분석된 위협 2)
 
         ### 종합 의견 및 투자 포인트
         - **종합 의견:** {company_name}은(는) [약점]에도 불구하고 [강점]과 [기회]를 바탕으로 성장이 기대되는 기업입니다. 다만, [위협] 요인에 대한 지속적인 관리가 필요합니다.
@@ -255,7 +275,7 @@ class report_workflow:
         return {"conclusion": conclusion}
 
     def report_assembler(self, state: report_workflow_state) -> report_workflow_state:
-        """모든 구성 요소를 조립하여 최종 마크다운 보고서를 생성.
+        """모든 구성 요소를 조립하여 최종 HTML 보고서를 생성.
 
         Args:
             state: 모든 구성 요소가 포함된 완전한 워크플로우 상태
@@ -266,12 +286,12 @@ class report_workflow:
         company_info = state.company_info
 
         if "error" in company_info:
-            final_report = f"# 오류: {company_info['error']}"
+            final_report = f"<h1>오류: {company_info['error']}</h1>"
             return {"final_report": final_report}
 
         company_name = company_info.get("corp_name", "알 수 없음")
         company_info_formatted = self._format_company_info(company_info)
-        financial_statement = state.financial_statement
+        financial_statement_html = state.financial_statement_html
         stock_chart_html = state.stock_chart_html
         financial_chart_html = state.financial_chart_html
         profitability_chart_html = state.profitability_chart_html
@@ -287,24 +307,25 @@ class report_workflow:
 
         recent_news_summary = "\n\n".join(news_summary_parts) if news_summary_parts else "최신 뉴스를 찾을 수 없습니다."
 
-        final_report = f"""
+        # 마크다운 템플릿 생성 (플레이스홀더 포함)
+        markdown_template = f"""
 # {company_name} 기업 분석 보고서
 
 ## I. 기업 개요
 {company_info_formatted}
 
 ## II. 재무 상황
-{financial_statement}
+{{FINANCIAL_STATEMENT_PLACEHOLDER}}
 
 ## III. 핵심 투자지표 분석
 ### 주가 성과 비교
-{stock_chart_html}
+{{STOCK_CHART_PLACEHOLDER}}
 
 ### 손익계산서 동기간 비교
-{financial_chart_html}
+{{FINANCIAL_CHART_PLACEHOLDER}}
 
 ### 수익성 지표 추이 분석
-{profitability_chart_html}
+{{PROFITABILITY_CHART_PLACEHOLDER}}
 
 ## IV. 최근 주요 소식
 {recent_news_summary}
@@ -313,7 +334,16 @@ class report_workflow:
 {conclusion}
 """
 
-        return {"final_report": final_report.strip()}
+        # 마크다운을 HTML로 변환
+        html_content = markdown.markdown(markdown_template.strip())
+
+        # 플레이스홀더를 실제 HTML 데이터로 치환
+        html_content = html_content.replace("{FINANCIAL_STATEMENT_PLACEHOLDER}", financial_statement_html)
+        html_content = html_content.replace("{STOCK_CHART_PLACEHOLDER}", stock_chart_html)
+        html_content = html_content.replace("{FINANCIAL_CHART_PLACEHOLDER}", financial_chart_html)
+        html_content = html_content.replace("{PROFITABILITY_CHART_PLACEHOLDER}", profitability_chart_html)
+
+        return {"final_report": html_content}
 
     def setup(self):
         """LangGraph 노드와 엣지를 정의하여 워크플로우를 구성.
@@ -354,12 +384,13 @@ class report_workflow:
             corp_code: 8자리 기업 코드 (ex: "00126380")
 
         Returns:
-            마크다운 형식의 기업 분석 보고서
+            HTML 형식의 기업 분석 보고서
         """
         input_state = report_workflow_state(
             corp_code=corp_code,
             company_info={},
             financial_statement="",
+            financial_statement_html="",
             news_data=[],
             analyzed_news=[],
             financial_features={},
@@ -447,6 +478,8 @@ class report_workflow:
 
     async def _categorize_news_list(self, company_name: str, news_list: list) -> list:
         """LLM을 사용하여 전체 뉴스 목록의 카테고리를 분류하고 관련성을 확인합니다."""
+        print(f"[DEBUG] 카테고리 분류 시작 - 뉴스 개수: {len(news_list)}")
+
         categorize_prompt = f"""
         당신은 금융 뉴스 큐레이터입니다. 다음은 '{company_name}'에 대한 최신 뉴스 목록입니다.
 
@@ -480,14 +513,25 @@ class report_workflow:
 
             categorized_list = self._extract_json_from_response(response, "array")
             if not categorized_list:
+                print(f"[DEBUG] 카테고리 분류 실패 - JSON 파싱 오류")
                 return []
 
+            relevant_count = 0
+            irrelevant_count = 0
             for item in categorized_list:
                 if 0 <= item.get("index", -1) < len(news_list):
-                    news_list[item["index"]]["category"] = item["category"]
+                    category = item["category"]
+                    news_list[item["index"]]["category"] = category
+                    if category == "irrelevant":
+                        irrelevant_count += 1
+                    else:
+                        relevant_count += 1
+
+            print(f"[DEBUG] 카테고리 분류 완료 - 관련뉴스: {relevant_count}, 무관뉴스: {irrelevant_count}")
             return news_list
 
         except (KeyError, TypeError) as e:
+            print(f"[DEBUG] 카테고리 분류 중 오류: {e}")
             return []
 
     async def _summarize_and_analyze_news(self, news_item: dict) -> dict:
@@ -545,10 +589,12 @@ class report_workflow:
         relevant_news = [
             n for n in categorized_news if n.get("category") != "irrelevant"
         ]
+        print(f"[DEBUG] 관련 뉴스 필터링 후: {len(relevant_news)}개")
 
         unique_articles = []
         processed_titles = []
         title_word_sets = []
+        removed_similar_count = 0
 
         for news_item in relevant_news:
             title = news_item.get("title", "")
@@ -563,14 +609,18 @@ class report_workflow:
             for existing_words in title_word_sets:
                 intersection = len(current_words.intersection(existing_words))
                 union = len(current_words.union(existing_words))
-                if union > 0 and (intersection / union) > 0.6:
+                if union > 0 and (intersection / union) > 0.7:
                     is_similar = True
+                    removed_similar_count += 1
+                    print(f"[DEBUG] 유사 제목으로 제거: {title[:50]}...")
                     break
 
             if not is_similar:
                 unique_articles.append(news_item)
                 processed_titles.append(title)
                 title_word_sets.append(current_words)
+
+        print(f"[DEBUG] 제목 유사도 필터링 후: {len(unique_articles)}개 (제거된 개수: {removed_similar_count})")
 
         # 3단계: 카테고리별로 분류
         available_categories = ["시장 및 경쟁", "R&D 및 기술", "생산 및 투자", "리스크 및 규제", "실적 및 재무"]
@@ -592,13 +642,21 @@ class report_workflow:
         categories_with_articles = [cat for cat in available_categories
                                   if articles_by_category[cat]]
 
+        print(f"[DEBUG] 카테고리별 기사 분포:")
+        for cat in available_categories:
+            count = len(articles_by_category[cat])
+            if count > 0:
+                print(f"[DEBUG]   {cat}: {count}개")
+
         # 최대 4개의 서로 다른 카테고리에서 각각 1개씩 선택
         selected_categories = categories_with_articles[:num_to_select]
+        print(f"[DEBUG] 선택된 카테고리: {selected_categories}")
 
         for category in selected_categories:
             if articles_by_category[category]:
                 selected_article = articles_by_category[category][0]
                 final_selection.append(selected_article)
+                print(f"[DEBUG] 카테고리 '{category}'에서 선택: {selected_article.get('title', '제목없음')[:50]}...")
 
         # 4개 미만인 경우, 남은 기사 중에서 추가 선택
         if len(final_selection) < num_to_select:
@@ -612,8 +670,10 @@ class report_workflow:
                 remaining_articles.extend(articles_by_category[category][1:])
 
             needed = num_to_select - len(final_selection)
+            print(f"[DEBUG] 추가로 {needed}개 기사 필요, 후보: {len(remaining_articles)}개")
             final_selection.extend(remaining_articles[:needed])
 
+        print(f"[DEBUG] 최종 선택된 뉴스 개수: {len(final_selection)}")
         return final_selection
 
     async def _extract_financial_features(self, financial_statement: str) -> dict:
@@ -827,15 +887,9 @@ class report_workflow:
                 ],
             }
 
-            # 차트 생성 및 저장 경로 설정
-            chart_dir = "charts"
-            os.makedirs(chart_dir, exist_ok=True)
-            chart_filepath = os.path.join(chart_dir, f"{corp_code}_chart1.html")
-
-            await generate_chart_html(chart_data, file_path=chart_filepath)
-
-            # 마크다운에 삽입할 링크 반환
-            return f"[{stock_name} 주가 비교 차트 보기]({chart_filepath})"
+            # 차트 생성하여 HTML 문자열 반환
+            chart_html = await generate_chart_html(chart_data)
+            return chart_html
 
         except Exception as e:
             return "<p>주가 비교 차트를 생성하는 데 실패했습니다.</p>"
@@ -877,14 +931,9 @@ class report_workflow:
             # 듀얼 차트 생성 (막대그래프와 선그래프 토글 가능)
             chart_data = self._create_dual_chart(company_name, valid_features, sorted_periods)
 
-            # 차트 생성 및 저장
-            chart_dir = "charts"
-            os.makedirs(chart_dir, exist_ok=True)
-            chart_filepath = os.path.join(chart_dir, f"{corp_code}_chart2.html")
-
-            await generate_chart_html(chart_data, file_path=chart_filepath)
-
-            return f"[{company_name} 손익계산서 비교 분석 (토글 차트) 보기]({chart_filepath})"
+            # 차트 생성하여 HTML 문자열 반환
+            chart_html = await generate_chart_html(chart_data)
+            return chart_html
 
         except Exception as e:
             print(f"재무 차트 생성 실패: {e}")
@@ -923,14 +972,9 @@ class report_workflow:
             # 수익성 차트 데이터 생성
             chart_data = self._create_profitability_chart_data(company_name, ratios, sorted_periods)
 
-            # 차트 생성 및 저장
-            chart_dir = "charts"
-            os.makedirs(chart_dir, exist_ok=True)
-            chart_filepath = os.path.join(chart_dir, f"{corp_code}_chart3.html")
-
-            await generate_chart_html(chart_data, file_path=chart_filepath)
-
-            return f"[{company_name} 수익성 지표 추이 분석 보기]({chart_filepath})"
+            # 차트 생성하여 HTML 문자열 반환
+            chart_html = await generate_chart_html(chart_data)
+            return chart_html
 
         except Exception as e:
             print(f"수익성 차트 생성 실패: {e}")
