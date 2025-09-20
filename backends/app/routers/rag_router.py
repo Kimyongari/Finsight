@@ -37,14 +37,16 @@ async def query_rag(request: RAGRequest) -> AdvancedRAGResponse:
 
 @router.post("/register")
 async def register(request: RegisterRequest) -> RegisterResponse:
-    file_name = request.file_name
+    file_names = request.file_name
     service = RagService()
-    result = service.register(file_name = file_name)
-    if result['success']:
-        return RegisterResponse(success = True, msg = f'{file_name}문서를 VDB에 적재하였습니다.')
-    else:
-        e = result['err_msg']
-        return RegisterResponse(success = False, msg = f'{file_name} 문서를 VDB에 적재하는 데에 실패하였습니다. 오류 메세지 : {e}')
+    for file_name in file_names:
+        result = service.register(file_name = file_name)
+        if result['success']:
+            continue
+        else:
+            e = result['err_msg']
+            return RegisterResponse(success = False, msg = f'{file_name} 문서를 VDB에 적재하는 데에 실패하였습니다. 오류 메세지 : {e}')
+    return RegisterResponse(success = True, msg = f'{file_name}문서를 VDB에 적재하였습니다.')
     
 
 @router.get("/reset")
