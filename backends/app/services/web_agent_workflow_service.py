@@ -244,7 +244,7 @@ class web_agent_workflow:
 
         for idx, doc in enumerate(documents, 1):
             summary_prompt = (
-                "주어진 문서 내용을 바탕으로 사용자 질문과 관련된 핵심 정보만 간략하게 요약해주세요. "
+                "주어진 문서 내용의 내용을 간략하게 요약해주세요. "
                 "답변은 3문장으로 간결하게 작성하세요."
             )
             summary_content = (
@@ -257,7 +257,7 @@ class web_agent_workflow:
             summary_parts.append(
                 f"### {idx}. {doc.get('title', 'N/A')}\n"
                 f"- **내용 요약**: {summary if summary else doc.get('snippet', 'N/A')}\n"
-                f"- **출처**: {doc.get('link', 'N/A')}\n"
+                f"- **출처**: [{doc.get('title', 'N/A')}]({doc.get('link', 'N/A')})\n"
             )
 
         return "\n".join(summary_parts)
