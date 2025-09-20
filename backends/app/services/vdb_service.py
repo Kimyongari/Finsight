@@ -4,6 +4,7 @@ from weaviate.classes.config import Property, DataType
 from ..core.llm.llm import Midm
 from glob import glob
 from weaviate.classes.query import Filter
+import time
 
 class VDBService:
     def __init__(self, url=None, http_port=None, grpc_port=None):
@@ -30,43 +31,17 @@ class VDBService:
 
     def initialize(self):
         try:
+
             paths = glob('./pdfs/*.pdf')
             files = [path.split('/')[-1] for path in paths]
             self.vdb.reset()
-            properties=[
-                Property(name="text", data_type=DataType.TEXT),
-                Property(name="n_char", data_type=DataType.INT),
-                Property(name="n_word", data_type=DataType.INT),
-                Property(name="i_page", data_type=DataType.INT),
-                Property(name="i_chunk_on_page", data_type=DataType.INT),
-                Property(name="n_chunk_of_page", data_type=DataType.INT),
-                Property(name="i_chunk_on_doc", data_type=DataType.INT),
-                Property(name="n_chunk_of_doc", data_type=DataType.INT),
-                Property(name="n_page", data_type=DataType.INT),
-                Property(name="name", data_type=DataType.TEXT),
-                Property(name="file_path", data_type=DataType.TEXT),
-                Property(name='file_name', data_type=DataType.TEXT)
-            ]
-            self.vdb.create_collection(name = 'LegalDB', properties=properties)
-            self.vdb.set_collection('LegalDB')
-            processor = DocumentProcessor()
-            all_chunks = []
-            for path in paths:
-                chunks = processor.preprocess(file_path = path)
-                all_chunks += chunks
-            objects = [{'text' : chunk.text,
-                        'n_char' : chunk.n_char,
-                        'n_word' : chunk.n_word,
-                        'i_page' : chunk.i_page,
-                        'i_chunk_on_page' : chunk.i_chunk_on_page,
-                        'n_chunk_of_page' : chunk.n_chunk_of_page,
-                        'i_chunk_on_doc' : chunk.i_chunk_on_doc,
-                        'n_chunk_of_doc' : chunk.n_chunk_of_doc,
-                        'n_page' : chunk.n_page,
-                        'name' : chunk.name,
-                        'file_path' : chunk.file_path,
-                         'file_name' : chunk.file_name } for chunk in all_chunks]
-            self.vdb.add_objects(objects = objects)
+            self.__init__()
+            for file_name in files:
+                response = self.register(file_name = file_name)
+                if response['success']:
+                    continue
+                else:
+                    print(file_name, '적재 중 오류 발생', response['err_msg'])
             return {'success' : True, 'files' : paths}
         
         except Exception as e:

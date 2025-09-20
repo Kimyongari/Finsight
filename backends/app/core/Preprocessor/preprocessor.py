@@ -44,8 +44,14 @@ class DocumentProcessor:
 6. 출력은 오직 법령 제목만 한 줄로 작성합니다.
 
 예시 입력:
-[개인정보 보호법 시행령]
-제1조(목적) 이 시행령은 개인정보 보호법에서 위임된 사항을 규정함을 목적으로 한다.....<생략>
+개인정보 보호법 시행령
+제1조(목적)
+제2조(금융회사의 범위)
+제3조
+제4조(전자화폐의 범용성 요건)
+제4조의2(가맹점의 범위)
+제5조(적용범위의 예외)
+...
 
 예시 출력:
 개인정보 보호법 시행령'''
@@ -61,6 +67,7 @@ class DocumentProcessor:
         for page in doc:
             self.all_text += page.get_text()
         first_page = doc[0].get_text()
+        first_page = first_page[:200] + '...'
         start = self.all_text.find('제1조(목적)')
         end = self.all_text[start+7:].find('제1조(목적)')
         names = self.all_text[start:end+7]

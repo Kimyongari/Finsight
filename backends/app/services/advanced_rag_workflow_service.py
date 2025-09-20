@@ -17,6 +17,53 @@ class advanced_rag_workflow:
         retrieved_documents = self.vdb.query_hybrid(query = question, topk = topk, alpha = alpha)
         return {'retrieved_documents' : retrieved_documents}
     
+    def reference_search(self, state: advanced_rag_state) -> advanced_rag_state:
+        retrieved_documents = state.retrieved_documents
+        context_list = [doc['text'] for doc in retrieved_documents]
+        contexts = "\n\n".join(context_list)
+        system_prompt = f"""
+당신은 법령 분석 전문가입니다.
+사용자가 제공한 문서에서 다른 법령의 참조 조항을 정확하게 찾아냅니다.
+당신의 역할은 이 문서에서 언급된 참조 조항의 법령 이름과 그에 해당하는 조 정보를 모두 추출하여 출력하는 것입니다.
+
+## 지침
+
+- 문서를 꼼꼼히 분석하여 장, 절, 조 등으로 표시된 참조를 모두 찾습니다.
+- 참조된 내용은 다음 형식으로 정확히 출력합니다:
+- "법령명 제X조(조항이름)" 의 형식을 반드시 준수하세요.
+- 여러 개의 참조가 있을 경우, 각 항목을 쉼표(,)로 구분하여 출력합니다.
+- 중복된 참조가 있을 경우 한 번만 출력합니다.
+- 참조된 조의 이름이 있다면 반드시 괄호까지 포함하여 작성하세요.
+- 다른 말은 절대 하지 않고 불필요한 설명, 문장부호, 기타 문구 없이 참조 법령 조항만 출력합니다.
+
+## 예시 출력
+전자금융감독규정 제14조의2(클라우드 컴퓨팅서비스 이용절차 등),개인정보보호법 제7조의11(위원의 제척ㆍ기피ㆍ회피),전자금융거래법 시행령 제2조의4(클라우드 컴퓨팅서비스의 보고)
+
+## 주의 사항
+- 지침을 반드시 준수하세요.
+- 다른 말은 절대 하지 않고 참조 법령 조항만 출력 형식에 맞게 출력하세요.
+"""
+        user_input = f"제공된 문서 : {contexts}"
+        result = self.llm.call(system_prompt=system_prompt, user_input=user_input)
+        try:
+            references = []
+            result = [i.replace(' ','') for i in result.split(',')]
+            for name in result:
+                reference = self.vdb.query_hybrid_with_filter(name = name)
+                if reference:
+                    if reference['text'] not in context_list:
+                        references.append(reference)
+                        print(name,'에 해당하는 참조 조문이 vdb 내에 존재하여 참조 조문 목록에 추가하였습니다.')
+                    else:
+                        print(name,'에 해당하는 참조 조문이 vdb 내에 존재하여 참조 조문 목록에 추가하려 했으나 이미 검색된 문서에 존재하여 스킵합니다.')
+                else:
+                    print(name,'에 해당하는 참조 조문이 vdb 내에 없습니다.')
+            return {'references' : references}
+            
+        except Exception as e:
+            print(f'참조조문 파싱오류 발생. 오류 : {e} / 검색 결과:', result)
+            return {'references' : []}
+        
     def generation(self, state: advanced_rag_state) -> advanced_rag_state:
         question = state.user_question
         retrieved_documents = state.retrieved_documents
@@ -58,49 +105,6 @@ class advanced_rag_workflow:
         answer = self.llm.call(system_prompt=system_prompt, user_input = user_input)
 
         return {'answer' : answer}
-    
-    def reference_search(self, state: advanced_rag_state) -> advanced_rag_state:
-        retrieved_documents = state.retrieved_documents
-        contexts = "\n\n".join([doc['text'] for doc in retrieved_documents])
-        system_prompt = f"""
-당신은 법령 분석 전문가입니다.
-사용자가 제공한 문서에서 다른 법령의 참조 조항을 정확하게 찾아냅니다.
-당신의 역할은 이 문서에서 언급된 참조 조항의 법령 이름과 그에 해당하는 조 정보를 모두 추출하여 출력하는 것입니다.
-
-## 지침
-
-- 문서를 꼼꼼히 분석하여 장, 절, 조 등으로 표시된 참조를 모두 찾습니다.
-- 참조된 내용은 다음 형식으로 정확히 출력합니다:
-- 법령명 제X조 의 형식을 반드시 준수하세요.
-- 여러 개의 참조가 있을 경우, 각 항목을 쉼표(,)로 구분하여 출력합니다.
-- 중복된 참조가 있을 경우 한 번만 출력합니다.
-- 참조된 조의 이름이 있다면 반드시 괄호까지 포함하여 작성하세요.
-- 다른 말은 절대 하지 않고 불필요한 설명, 문장부호, 기타 문구 없이 참조 법령 조항만 출력합니다.
-
-## 예시 출력
-전자금융감독규정 제14조의2(클라우드 컴퓨팅서비스 이용절차 등),개인정보보호법 제7조의11(위원의 제척ㆍ기피ㆍ회피),전자금융거래법 시행령 제2조의4(클라우드 컴퓨팅서비스의 보고)
-
-## 주의 사항
-- 지침을 반드시 준수하세요.
-- 다른 말은 절대 하지 않고 참조 법령 조항만 출력 형식에 맞게 출력하세요.
-"""
-        user_input = f"제공된 문서 : {contexts}"
-        result = self.llm.call(system_prompt=system_prompt, user_input=user_input)
-        try:
-            references = []
-            result = [i.replace(' ','') for i in result.split(',')]
-            for name in result:
-                reference = self.vdb.query_hybrid_with_filter(name = name)
-                if reference:
-                    references.append(reference)
-                    print(name,'에 해당하는 참조 조문이 vdb 내에 존재하여 참조 조문 목록에 추가하였습니다.')
-                else:
-                    print(name,'에 해당하는 참조 조문이 vdb 내에 없습니다.')
-            return {'references' : references}
-            
-        except Exception as e:
-            print(f'참조조문 파싱오류 발생. 오류 : {e} / 검색 결과:', result)
-            return {'references' : []}
     
     def setup(self):
         workflow = StateGraph(advanced_rag_state)
