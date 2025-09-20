@@ -89,6 +89,7 @@ class RagService:
     def initialize(self):
         try:
             paths = glob('./pdfs/*.pdf')
+            files = [path.split('/')[-1] for path in paths]
             self.vdb.reset()
             properties=[
                 Property(name="text", data_type=DataType.TEXT),
@@ -122,7 +123,7 @@ class RagService:
                         'name' : chunk.name,
                         'file_path' : chunk.file_path } for chunk in all_chunks]
             self.vdb.add_objects(objects = objects)
-            return {'success' : True}
+            return {'success' : True, 'files' : paths}
         
         except Exception as e:
             print('Error during initialization:', str(e))

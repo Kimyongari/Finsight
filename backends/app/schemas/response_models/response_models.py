@@ -5,6 +5,12 @@ class RAGResponse(BaseModel):
     success:bool
     retrieved_documents: list[dict]
 
+class AdvancedRAGResponse(BaseModel):
+    answer: str
+    success: bool
+    retrieved_documnets: list[dict]
+    references: list[dict]
+
 class StatementResponse(BaseModel):
     statement: str
     success:bool

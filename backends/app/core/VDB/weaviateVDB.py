@@ -241,7 +241,7 @@ class VectorDB:
             query = 'dummy'
             query_fields = fields if fields else ['text']
             vector = self.embedding_model.embed_query(query)['embedding']
-            results = self.collection.query.hybrid(
+            result = self.collection.query.hybrid(
                 query = query,
                 vector = vector,
                 alpha = alpha,
@@ -249,9 +249,11 @@ class VectorDB:
                 limit = 1,
                 filters=Filter.by_property("name").equal(name),
             )
-            if results:
-                return results.objects.properties
-            else:
+            print('name에 대한 검색결과:', result)
+            if not result or not hasattr(result, "objects") or not result.objects:
                 return {}
+
+            # objects가 리스트일 경우 첫 번째 결과 반환
+            return result.objects[0].properties if result.objects else {}
         else:
             raise ValueError("Collection이 지정되지 않았습니다. set_collection()으로 먼저 설정하세요.")

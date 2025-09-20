@@ -1,6 +1,4 @@
-from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START, END
-from langchain.schema.messages import HumanMessage, SystemMessage
 from app.core.llm.llm import Midm
 from app.core.VDB.weaviateVDB import VectorDB
 from dotenv import load_dotenv
@@ -93,11 +91,15 @@ class advanced_rag_workflow:
             result = [i.replace(' ','') for i in result.split(',')]
             for name in result:
                 reference = self.vdb.query_hybrid_with_filter(name = name)
-                print(reference)
-                references.append(reference)
+                if reference:
+                    references.append(reference)
+                    print(name,'에 해당하는 참조 조문이 vdb 내에 존재하여 참조 조문 목록에 추가하였습니다.')
+                else:
+                    print(name,'에 해당하는 참조 조문이 vdb 내에 없습니다.')
             return {'references' : references}
+            
         except Exception as e:
-            print('참조조문 파싱오류 발생. 검색 결과:', result)
+            print(f'참조조문 파싱오류 발생. 오류 : {e} / 검색 결과:', result)
             return {'references' : []}
     
     def setup(self):
@@ -113,6 +115,11 @@ class advanced_rag_workflow:
         return workflow
 
     def run(self, question):
-        input = advanced_rag_state(user_question=question, retrieved_documents=[{}], answer='', references=[{}])
-        result = self.workflow.invoke(input=input)
-        return result
+        input = advanced_rag_state(user_question=question, retrieved_documents=[{}], answer='', references = [{}])
+        try:
+            result = self.workflow.invoke(input=input)
+            response = {'success' : True, 'answer' : result['answer'], 'retrieved_documents' : result['retrieved_documents'], 'references' : result['references']}
+            return response
+        except Exception as e:
+            response = {'success' : False, 'err_msg' : e}
+            return response

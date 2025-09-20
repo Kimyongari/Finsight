@@ -1,14 +1,14 @@
 from fastapi import FastAPI
 from app.routers import rag_router, financial_router, web_agent_router, report_router, file_upload_router
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import uvicorn
-
 app = FastAPI(
     title="Financial Agent API",
     description="An API utilizing RAG, Financial, and Web Agent services.",
     version="1.0.0",
 )
-
+app.mount("/pdfs", StaticFiles(directory="pdfs"), name="pdfs")
 # Include routers
 app.include_router(rag_router.router, prefix="/rag", tags=["RAG Service"])
 app.include_router(financial_router.router, prefix="/financial", tags=["Financial Service"])

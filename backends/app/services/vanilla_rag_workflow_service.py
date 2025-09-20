@@ -17,8 +17,12 @@ class vanilla_rag_workflow:
 
     def retriever(self, state: vanilla_rag_state, topk=4, alpha = 0.5) -> vanilla_rag_state:
         question = state.user_question
-        retrieved_documents = self.vdb.query_hybrid(query = question, topk = topk, alpha = alpha)
-        return {'retrieved_documents' : retrieved_documents}
+        try:
+            retrieved_documents = self.vdb.query_hybrid(query = question, topk = topk, alpha = alpha)
+            return {'retrieved_documents' : retrieved_documents}
+        except Exception as e:
+            print(f'retriever 과정 중 오류 발생 : {e} 빈 리스트를 return 합니다.')
+            return {'retrieved_documents' : []}
     
     def generation(self, state: vanilla_rag_state) -> vanilla_rag_state:
         question = state.user_question
@@ -70,6 +74,7 @@ class vanilla_rag_workflow:
         try:
             result = self.workflow.invoke(input=input)
             response = {'success' : True, 'answer' : result['answer'], 'retrieved_documents' : result['retrieved_documents']}
+            return response
         except Exception as e:
             response = {'success' : False, 'err_msg' : e}
             return response
