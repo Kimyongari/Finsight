@@ -13,8 +13,9 @@ type BubbleProps = {
   isQuestion: boolean;
   answerClass?: string;
   cites: RetrievedDoc[];
+  isLoading: boolean;
   msg: Message;
-  onCiteClick: (page: number) => void;
+  onCiteClick: (fileName: string, page: number) => void;
 };
 
 export function Bubble({
@@ -25,26 +26,20 @@ export function Bubble({
       : "max-w-[90%] md:max-w-[80%] border-gray-100 text-gray-800 border border-solid rounded-bl-none"
   }`,
   cites,
+  isLoading,
   msg,
   onCiteClick,
 }: BubbleProps) {
+  const [visibleKey, setVisibleKey] = useState<string | null>(null);
   const renderContent = () => {
-    // 문자열이면 ReactMarkdown 사용, JSX이면 그대로 렌더링
-    const [textVisibleMap, setTextVisibleMap] = useState<{
-      [key: string]: boolean;
-    }>({});
-
     const handleTextVisible = (key: string) => {
-      setTextVisibleMap((prev) => ({
-        ...prev,
-        [key]: !prev[key], // 기존 값이 true면 false로, false면 true로 토글
-      }));
+      setVisibleKey((prev) => (prev === key ? null : key));
     };
 
     if (typeof msg.text === "string") {
       return (
         <>
-          <div className="prose max-w-none w-full">
+          <div className="prose max-w-none w-full mb-4">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {msg.text + (msg.isStreaming ? "\n" : "")}
             </ReactMarkdown>
@@ -52,22 +47,25 @@ export function Bubble({
           {!msg.isStreaming && (
             <>
               <hr />
-              <div className="flex flex-col gap-2 text-sm">
-                {cites.map((cite) => {
-                  const key = cite.name + cite.i_page;
+              <div className="flex flex-col gap-2 text-sm mt-4">
+                {cites.map((cite, index) => {
+                  const key = `${cite.name}-${cite.i_page}-${index}`;
                   return (
                     <div key={key}>
                       <button
                         onClick={() => {
-                          onCiteClick(cite.i_page);
+                          onCiteClick(cite.file_name, cite.i_page);
                           handleTextVisible(key);
                         }}
-                        className="text-left"
+                        className="text-left bg-gray-200"
                       >
                         {cite.name}
                       </button>
-                      {textVisibleMap[key] && (
-                        <div style={{ whiteSpace: "pre-wrap" }}>
+                      {visibleKey === key && !isLoading && (
+                        <div
+                          className="mt-2 border p-2 rounded-md bg-gray-50 border-gray-50"
+                          style={{ whiteSpace: "pre-wrap" }}
+                        >
                           {cite.text}
                         </div>
                       )}

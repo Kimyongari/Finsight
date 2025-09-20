@@ -104,6 +104,7 @@ function Chatbot() {
 
     setInputValue("");
     setIsLoading(true); // 로딩 시작
+    setIsPdfVisible(false);
     try {
       const response = await fetch("http://localhost:8000/rag/query", {
         method: "POST",
@@ -168,7 +169,7 @@ function Chatbot() {
             return rest;
           });
         }
-      }, 15);
+      }, 1);
 
       return () => clearInterval(intervalId);
     });
@@ -251,6 +252,7 @@ function Chatbot() {
   // PDF 페이지
   const [pageNum, setPageNum] = useState(1);
   const [pdfWidth, setPdfWidth] = useState(400); // 초기 폭 (px)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     const startX = e.clientX;
@@ -269,15 +271,39 @@ function Chatbot() {
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
   };
+
   // Bubble에서 클릭될 때 호출되는 핸들러
-  const handleCiteClick = (page: number) => {
-    // 이미 같은 페이지를 보고 있으면 토글
-    if (pageNum === page) {
-      setIsPdfVisible((prev) => !prev); // 열려있으면 닫고, 닫혀있으면 열고
-    } else {
-      // 다른 페이지를 클릭하면 해당 페이지로 바꾸면서 열기
+  const handleCiteClick = async (fileName: string, page: number) => {
+    if (pageNum !== page) {
+      // 다른 페이지 클릭 → 페이지 번호 바꾸고 무조건 뷰어 열기
       setPageNum(page);
       setIsPdfVisible(true);
+    }
+
+    // 같은 페이지 클릭 시 토글
+    if (pageNum === page && pdfUrl) {
+      setIsPdfVisible((prev) => !prev);
+    } else {
+      // PDF 불러오기
+      try {
+        const response = await fetch(
+          "http://localhost:8000/files/download-pdf",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ file_name: fileName }),
+          }
+        );
+        if (!response.ok) throw new Error("PDF fetch failed");
+
+        const blob = await response.blob();
+        if (pdfUrl) URL.revokeObjectURL(pdfUrl); // 기존 Blob URL 해제
+        const url = URL.createObjectURL(blob);
+        setPdfUrl(url);
+        setIsPdfVisible(true);
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 
@@ -298,6 +324,7 @@ function Chatbot() {
                 <Bubble
                   onCiteClick={handleCiteClick}
                   key={msg.id}
+                  isLoading={isLoading}
                   isQuestion={msg.type === "question"}
                   cites={retrievedDocs}
                   msg={msg}
@@ -317,11 +344,16 @@ function Chatbot() {
                   style={{ width: pdfWidth }}
                   className="w-1/2 scrollbar-hide max-h-[calc(100vh-4rem)] overflow-auto bg-gray-100 p-2"
                 >
-                  <PdfViewer
-                    initialPage={pageNum}
-                    onPageChange={setPageNum}
-                    onClose={handleClosePdf}
-                  />
+                  {pdfUrl ? (
+                    <PdfViewer
+                      fileURL={pdfUrl}
+                      initialPage={pageNum}
+                      onPageChange={setPageNum}
+                      onClose={handleClosePdf}
+                    />
+                  ) : (
+                    <LoadingSpinner loadingText="PDF를 로딩 중입니다..." />
+                  )}
                 </div>
               </>
             )}
