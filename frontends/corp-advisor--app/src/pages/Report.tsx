@@ -22,29 +22,30 @@ const HtmlWithScriptsRenderer = ({ htmlString }: { htmlString: string }) => {
     tempDiv.innerHTML = htmlString;
 
     const scripts = Array.from(tempDiv.querySelectorAll("script"));
-    
+
     // Append non-script HTML content first
     const fragment = document.createDocumentFragment();
-    Array.from(tempDiv.childNodes).forEach(node => {
-        if (node.nodeName.toLowerCase() !== 'script') {
-            fragment.appendChild(node.cloneNode(true));
-        }
+    Array.from(tempDiv.childNodes).forEach((node) => {
+      if (node.nodeName.toLowerCase() !== "script") {
+        fragment.appendChild(node.cloneNode(true));
+      }
     });
     container.appendChild(fragment);
-    
+
     const loadedScripts: HTMLScriptElement[] = [];
 
     const executeScripts = async () => {
       for (const script of scripts) {
         const newScript = document.createElement("script");
-        script.getAttributeNames().forEach(attr => {
+        script.getAttributeNames().forEach((attr) => {
           newScript.setAttribute(attr, script.getAttribute(attr) || "");
         });
-        
+
         if (script.src) {
           await new Promise<void>((resolve, reject) => {
             newScript.onload = () => resolve();
-            newScript.onerror = () => reject(new Error(`Script load error for ${script.src}`));
+            newScript.onerror = () =>
+              reject(new Error(`Script load error for ${script.src}`));
             document.body.appendChild(newScript);
             loadedScripts.push(newScript);
           });
@@ -59,7 +60,7 @@ const HtmlWithScriptsRenderer = ({ htmlString }: { htmlString: string }) => {
     executeScripts();
 
     return () => {
-      loadedScripts.forEach(script => {
+      loadedScripts.forEach((script) => {
         if (document.body.contains(script)) {
           document.body.removeChild(script);
         }
@@ -69,7 +70,6 @@ const HtmlWithScriptsRenderer = ({ htmlString }: { htmlString: string }) => {
 
   return <div ref={containerRef} className="prose max-w-none w-full" />;
 };
-
 
 // 메시지 타입 정의
 type Message = {
@@ -124,42 +124,45 @@ function Report() {
   }, []);
 
   const generateReport = async (corpCode?: string) => {
-  const codeToUse = corpCode;
-  if (!codeToUse?.trim()) return;
+    const codeToUse = corpCode;
+    if (!codeToUse?.trim()) return;
 
-  // ✅ 이전 보고서 메시지 초기화
-  setMessages([]);
-  localStorage.removeItem("chatMessages");
+    // ✅ 이전 보고서 메시지 초기화
+    setMessages([]);
+    localStorage.removeItem("chatMessages");
 
-  setIsGenerating(true);
-  setSearchTerm("");
+    setIsGenerating(true);
+    setSearchTerm("");
 
-  try {
-    const response = await fetch(`http://127.0.0.1:8000/report/${codeToUse}`, {
-      method: "GET",
-    });
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/report/${codeToUse}`,
+        {
+          method: "GET",
+        }
+      );
 
-    if (!response.ok) throw new Error("네트워크 응답이 실패했습니다.");
-    const data = await response.text();
+      if (!response.ok) throw new Error("네트워크 응답이 실패했습니다.");
+      const data = await response.text();
 
-    setReportStatus("success");
+      setReportStatus("success");
 
-    const reportAnswer: Message = {
-      id: Date.now(),
-      type: "answer",
-      text: data,
-    };
+      const reportAnswer: Message = {
+        id: Date.now(),
+        type: "answer",
+        text: data,
+      };
 
-    // ✅ 이전 메시지가 아니라 완전히 새 메시지만 추가
-    setMessages([reportAnswer]);
-  } catch (err) {
-    alert("입력하신 기업 코드로 검색된 리포트 정보가 없습니다.");
-    console.error("답변을 가져오는 데 실패했습니다:", err);
-    setReportStatus("error");
-  } finally {
-    setIsGenerating(false);
-  }
-};
+      // ✅ 이전 메시지가 아니라 완전히 새 메시지만 추가
+      setMessages([reportAnswer]);
+    } catch (err) {
+      alert("입력하신 기업 코드로 검색된 리포트 정보가 없습니다.");
+      console.error("답변을 가져오는 데 실패했습니다:", err);
+      setReportStatus("error");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
   const inputContainerClass =
     deviceType === "mobile" ? "w-full" : "w-2/3 mx-auto";
   const messageListClass =
@@ -186,7 +189,9 @@ function Report() {
                       }`}
                     >
                       {typeof msg.text === "string" ? (
-                        <HtmlWithScriptsRenderer htmlString={msg.text as string} />
+                        <HtmlWithScriptsRenderer
+                          htmlString={msg.text as string}
+                        />
                       ) : (
                         msg.text
                       )}
@@ -216,7 +221,7 @@ function Report() {
                 <h1 className="text-4xl font-bold text-gray-800 mb-2">
                   기업 보고서 생성
                 </h1>
-                <p className="text-gray-500">CorpAdvisor</p>
+                <p className="text-gray-500">FinSight</p>
               </header>
               <main className="w-full max-w-screen-md">
                 <div className="overflow-x-auto w-full mb-4 flex gap-2 p-4">
@@ -247,7 +252,9 @@ function Report() {
                   error={corpError}
                   data={corpData.filter((item) =>
                     Object.values(item).some((v) =>
-                      String(v).toLowerCase().includes(tableSearch.toLowerCase())
+                      String(v)
+                        .toLowerCase()
+                        .includes(tableSearch.toLowerCase())
                     )
                   )}
                   isSearchInput={false}

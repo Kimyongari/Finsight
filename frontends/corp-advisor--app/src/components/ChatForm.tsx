@@ -131,7 +131,7 @@ export function ChatForm({
           <SendHorizonal />
         </button>
       </div>
-      <FooterText footerText="CorpAdvisor의 답변은 부정확할 수 있습니다. 중요한 정보는 다시 확인해주세요." />
+      <FooterText footerText="FinSight의 답변은 부정확할 수 있습니다. 중요한 정보는 다시 확인해주세요." />
     </div>
   );
 }

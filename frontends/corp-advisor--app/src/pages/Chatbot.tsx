@@ -365,7 +365,7 @@ function Chatbot() {
         >
           <header className="text-center">
             <h1 className="text-4xl font-bold text-gray-800">금융 자문 챗봇</h1>
-            <p className="text-gray-500 mt-2">CorpAdvisor</p>
+            <p className="text-gray-500 mt-2">FinSight</p>
           </header>
           {isModalOpen && (
             <Modal
