@@ -148,7 +148,7 @@ class DocumentProcessor:
         last_chapter = list(structure.keys())[-1]
         last_section = list(structure[last_chapter].keys())[-1]
         last_article = list(structure[last_chapter][last_section][-1].keys())[-1]
-        start_idx = all_text.find(last_article) + 1
+        start_idx = all_text.find(last_article) + 3
         all_text = all_text[start_idx:]
         search_pos = 0
 

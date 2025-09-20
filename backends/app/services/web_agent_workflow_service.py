@@ -227,11 +227,11 @@ class web_agent_workflow:
         answer_prompt = (
             "당신은 전문 분석가입니다. 주어진 문서들을 종합적으로 분석하여 "
             "사용자의 질문에 대해 상세하고 체계적인 답변을 Markdown 형식으로 작성해주세요. "
-            "답변은 다음 구조를 따라주세요:\n"
-            "1. ## 요약\n"
-            "2. ## 주요 내용\n"
-            "3. ## 상세 분석\n"
-            "4. ## 결론\n\n"
+            "답변은 다음 구조를 따라주세요:"
+            "## 요약"
+            "## 주요 내용"
+            "## 상세 분석"
+            "## 결론"
             "중요: 각 섹션 제목은 정확히 '## 제목' 형태로 작성하세요. '#'이나 '# ##' 같은 형태는 사용하지 마세요. "
             "참고 자료 섹션은 생성하지 마세요. 각 섹션은 구체적이고 근거있는 내용으로 작성해주세요."
         )
@@ -245,10 +245,14 @@ class web_agent_workflow:
         llm_answer = await self.llm.acall(system_prompt=answer_prompt, user_input=answer_content)
 
         # 실제 사용된 문서들로 참고 자료 섹션 직접 생성
-        reference_section = "\n\n## 참고 자료\n\n"
+        reference_section = "\n## 참고 자료\n\n"
         for idx, doc in enumerate(documents, 1):
-            reference_section += f"{idx}. **{doc.get('title', 'N/A')}** ({doc.get('link', 'N/A')}): {doc.get('snippet', 'N/A')[:100]}{'...' if len(doc.get('snippet', '')) > 100 else ''}\n\n"
-
+            title = doc.get('title', 'N/A')
+            link = doc.get('link', 'N/A')
+            snippet = doc.get('snippet', 'N/A')
+            
+            # 리스트 항목은 반드시 한 줄 시작 부분에 '-' 위치
+            reference_section += f"- [{title}]({link}): {snippet[:100]}{'...' if len(snippet) > 100 else ''}\n"
         return llm_answer + reference_section
 
     async def _create_document_summary(self, question: str, documents: list[dict]) -> str:
