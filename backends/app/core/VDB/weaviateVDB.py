@@ -164,6 +164,7 @@ class VectorDB:
 # 특정 collection에 vector와 함께 다수의 object를 추가합니다.
     def add_objects(self, objects:list[dict]):
         collection = self.collection
+        print(len(objects),'개의 파일을 적재합니다...')
         if getattr(self.collection, 'exists', None):        
             if collection.exists():
                 with collection.batch.fixed_size(batch_size=32) as batch:
@@ -263,7 +264,6 @@ class VectorDB:
                 limit = 1,
                 filters=Filter.by_property("name").equal(name),
             )
-            print('name에 대한 검색결과:', result)
             if not result or not hasattr(result, "objects") or not result.objects:
                 return {}
 
