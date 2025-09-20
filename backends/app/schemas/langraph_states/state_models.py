@@ -40,3 +40,25 @@ class report_workflow_state(BaseModel):
     profitability_chart_html: str = ""
     conclusion: str = ""
     final_report: str = ""
+
+class web_agent_state(BaseModel):
+    """웹 에이전트 워크플로우의 상태 모델.
+
+    Attributes:
+        user_question: 사용자 질문
+        generated_queries: LLM이 생성한 검색 쿼리 목록
+        collected_documents: 웹 검색으로 수집된 원본 문서 목록
+        filtered_documents: 임베딩 유사도로 필터링된 문서 목록
+        similarity_score: 필터링된 문서들의 평균 유사도 점수
+        final_answer: 최종 생성된 답변
+        answer_type: 답변 생성 방식 (통합_분석 또는 문서별_요약)
+        search_results: API 응답용 검색 결과 목록
+    """
+    user_question: str
+    generated_queries: list[str] = []
+    collected_documents: list[dict] = []
+    filtered_documents: list[dict] = []
+    similarity_score: float = 0.0
+    final_answer: str = ""
+    answer_type: str = ""
+    search_results: list[dict] = []
