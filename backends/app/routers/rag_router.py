@@ -30,9 +30,9 @@ async def query_rag(request: RAGRequest) -> AdvancedRAGResponse:
     response = workflow.run(question = user_query)
         
     if 'err_msg' in response:
-        return RAGResponse(success = response['success'], answer = response['err_msg'], retrieved_documents=[{}], references = [{}])
+        return AdvancedRAGResponse(success = response['success'], answer = response['err_msg'], retrieved_documents=[{}], references = [{}])
     else:
-        return RAGResponse(success = response['success'], answer = response['answer'], retrieved_documents=response['retrieved_documents'], references = response['references'])
+        return AdvancedRAGResponse(success = response['success'], answer = response['answer'], retrieved_documents=response['retrieved_documents'], references = response['references'])
     
 
 @router.post("/register")

@@ -161,7 +161,7 @@ class DocumentProcessor:
                             if chapter == '목적' and section !='제1조(목적)':
                                 chunk_with_title = f'[{self.legal_name}] [{section}] [{current_article_title}] {chunk_text}'
                             else:
-                                chunk_with_title = f'[{self.legal_name}] [{chapter}] [{section}][{current_article_title}] {chunk_text}'
+                                chunk_with_title = f'[{self.legal_name}] [{chapter}] [{section}] [{current_article_title}] {chunk_text}'
                             name = self.legal_name+current_article_title
                             name = name.replace(' ','')
                             vectors.append(VectorMeta.model_validate({

@@ -22,14 +22,14 @@ services:
     env_file:
       - ./backends/.env
 
-  # frontend:
-  #   build:
-  #     context: ./frontends/corp-advisor--app
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "5173:5173"
-  #   volumes:
-  #     - ./frontends/corp-advisor--app:/app
-  #     - /app/node_modules
-  #   depends_on:
-  #     - backend
+  frontend:
+    build:
+      context: ./frontends/corp-advisor--app
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontends/corp-advisor--app:/app
+      - /app/node_modules
+    depends_on:
+      - backend
