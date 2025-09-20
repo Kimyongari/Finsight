@@ -5,6 +5,8 @@ import requests
 from bs4 import BeautifulSoup, Tag
 import pandas as pd
 from ..llm.llm import Midm
+from bs4 import BeautifulSoup
+
 
 load_dotenv()
 
@@ -71,12 +73,27 @@ class financial_statements_extractor:
 
         # 💡 항상 DataFrame을 반환하도록 수정
         return df
-    
+    def extract_main_content(self, html_content: str) -> str:
+        """
+        HTML 전체에서 <body> 내부의 실제 콘텐츠만 추출하는 함수
+        """
+        # HTML 파싱
+        soup = BeautifulSoup(html_content, "lxml")
+
+        # <body> 태그 찾기
+        body = soup.find("body")
+        if not body:
+            raise ValueError("HTML에 <body> 태그가 없습니다.")
+
+        # <body> 내부의 컨텐츠만 가져오기 (HTML 문자열로 변환)
+        main_content = "".join(str(child) for child in body.contents if child.name or child.strip())
+
+        return main_content.strip()
     def _extract_statements(self, url, mode = 'html'):
         html = self.url2html(url)
         if mode == 'html':
-            financial_statement = html
-            return html
+            financial_statement = self.extract_main_content(html)
+            return financial_statement
         elif mode == 'markdown':
             dfs = pd.read_html(html)
             dfs_markdown = []
@@ -149,3 +166,4 @@ class financial_statements_extractor:
         statement_url = self.get_statemnets_url(idx = statement_idx, rcept_no = recent_rcept_no)
         financial_statement = self._extract_statements(url = statement_url, mode = mode)
         return financial_statement
+    
