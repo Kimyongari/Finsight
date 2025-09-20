@@ -5,6 +5,7 @@ import { Table } from "../components/Table.tsx";
 import { Button } from "../components/Button.tsx";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { SendHorizonal } from "lucide-react";
 import { LoadingSpinner } from "../components/LoadingSpinner.tsx";
 
 // 메시지 타입 정의
@@ -183,7 +184,9 @@ function Report() {
                     if (e.key === "Enter") handleCorpSearch();
                   }}
                 />
-                <Button ButtonText="검색" onClick={handleCorpSearch} />
+                <button type="button" onClick={handleCorpSearch} className={`px-5 py-3 text-white font-bold rounded-lg self-end bg-indigo-500 hover:bg-indigo-600 transform transition-transform duration-200 hover:scale-105 active:scale-95}`}>
+                  <SendHorizonal/>
+                </button>
               </div>
 
               <Table

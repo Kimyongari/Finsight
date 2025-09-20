@@ -328,7 +328,9 @@ function Chatbot() {
             <h1 className="text-4xl font-bold text-gray-800">금융 자문 챗봇</h1>
             <p className="text-gray-500 mt-2">CorpAdvisor</p>
           </header>
-          <RAGDropdown />
+          <div className={inputContainerClass}>
+            <RAGDropdown />
+          </div>
           {isModalOpen && renderModal()}
           <div className="w-full">{renderChatForm()}</div>
         </div>

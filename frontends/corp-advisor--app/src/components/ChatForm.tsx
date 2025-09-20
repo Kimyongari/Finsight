@@ -1,6 +1,6 @@
 import React, {useState} from "react";
-import {Button} from "../components/Button.tsx";
 import {FooterText} from "./FooterText";
+import { Upload, SendHorizonal } from "lucide-react";
 
 type ChatFormProps = {
   inputContainerClass: string;
@@ -48,7 +48,7 @@ export function ChatForm({
         {/* 파일 아이콘 클릭 시 문구 토글 */}
         <div className="relative">
           <button type="button" onClick={() => setShowUploadText((prev) => !prev)} className="p-3 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none overflow-y-hidden border-none">
-            📤
+            <Upload />
           </button>
 
           {
@@ -75,7 +75,7 @@ export function ChatForm({
         isLoading
           ? "bg-gray-700 cursor-not-allowed"
           : "bg-indigo-500 hover:bg-indigo-600 transform transition-transform duration-200 hover:scale-105 active:scale-95"}`}>
-        ⬆
+        <SendHorizonal/>
       </button>
     </div>
     <FooterText footerText="CorpAdvisor의 답변은 부정확할 수 있습니다. 중요한 정보는 다시 확인해주세요."/>

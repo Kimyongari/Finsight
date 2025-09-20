@@ -2,7 +2,7 @@ import React, {useState, useRef, useEffect} from "react";
 
 const options = ["간단 RAG", "심화 RAG", "RAG 3번"];
 
-export function RagDropdown({onSelect} : {
+export function RAGDropdown({onSelect} : {
   onSelect: (value : string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,8 +26,8 @@ export function RagDropdown({onSelect} : {
     onSelect(option);
   };
 
-  return (<div ref={dropdownRef} className="relative w-40">
-    <button onClick={() => setIsOpen((prev) => !prev)} className="w-full p-2 border rounded bg-white text-left">
+  return (<div ref={dropdownRef} className="relative flex-1 justify-start">
+    <button onClick={() => setIsOpen((prev) => !prev)} className="p-2 border rounded bg-white text-left">
       {selected || "RAG 선택"}
     </button>
 
