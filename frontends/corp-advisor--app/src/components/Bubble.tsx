@@ -39,7 +39,7 @@ export function Bubble({
     if (typeof msg.text === "string") {
       return (
         <>
-          <div className="prose max-w-none w-full mb-4 whitespace-pre-wrap">
+          <div className="prose max-w-none w-full mb-4">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {msg.text + (msg.isStreaming ? "\n" : "")}
             </ReactMarkdown>

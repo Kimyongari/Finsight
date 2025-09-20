@@ -63,14 +63,15 @@ export function ChatForm({
             onSelect={(selectedValue) => setQueryMode(selectedValue)}
           />
           <textarea
+            rows={1}
             ref={textareaRef}
             value={inputValue}
             onChange={onChange}
             onKeyDown={onKeyDown}
             placeholder={placeholder}
             disabled={isLoading}
-            className="flex-1 px-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none overflow-y-hidden border-none grid place-items-center"
-          />{" "}
+            className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none overflow-y-hidden border-none"
+          />
           {/* 파일 아이콘 클릭 시 문구 토글 */}
           <div className="relative">
             <button

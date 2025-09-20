@@ -20,9 +20,7 @@ type RetrievedDoc = {
 const initialMessages: Message[] = [];
 
 function Chatbot() {
-  const exampleDocs: RetrievedDoc[] = [
-
-  ];
+  const exampleDocs: RetrievedDoc[] = [];
   const [retrievedDocs, setRetrievedDocs] =
     useState<RetrievedDoc[]>(exampleDocs);
 
@@ -199,8 +197,7 @@ function Chatbot() {
     return "desktop";
   }
 
-  const inputContainerClass =
-    deviceType === "mobile" ? "w-full" : "w-3/4 mx-auto";
+  const inputContainerClass = "w-full";
 
   const messageListClass =
     deviceType === "mobile" ? "p-4" : "w-1/2 mx-auto p-4";
