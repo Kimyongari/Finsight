@@ -33,7 +33,6 @@ async def query_rag(request: RAGRequest) -> AdvancedRAGResponse:
         return AdvancedRAGResponse(success = response['success'], answer = response['err_msg'], retrieved_documents=[{}], references = [{}])
     else:
         return AdvancedRAGResponse(success = response['success'], answer = response['answer'], retrieved_documents=response['retrieved_documents'], references = response['references'])
-    
 
 @router.post("/register")
 async def register(request: RegisterRequest) -> RegisterResponse:

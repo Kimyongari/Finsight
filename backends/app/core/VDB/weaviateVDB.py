@@ -257,3 +257,12 @@ class VectorDB:
             return result.objects[0].properties if result.objects else {}
         else:
             raise ValueError("Collection이 지정되지 않았습니다. set_collection()으로 먼저 설정하세요.")
+
+
+    def view_files_in_collection(self, collection_name:str = None):
+        if collection_name:
+            self.set_collection(collection_name)
+        else:
+            self.set_collection("LegalDB")
+
+        

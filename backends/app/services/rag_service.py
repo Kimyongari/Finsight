@@ -21,7 +21,8 @@ class RagService:
                 Property(name="n_chunk_of_doc", data_type=DataType.INT),
                 Property(name="n_page", data_type=DataType.INT),
                 Property(name="name", data_type=DataType.TEXT),
-                Property(name="file_path", data_type=DataType.TEXT)
+                Property(name="file_path", data_type=DataType.TEXT),
+                Property(name="file_name", data_type=DataType.TEXT)
             ]
             self.vdb.create_collection(name = 'LegalDB', properties=properties)
             self.vdb.set_collection('LegalDB')
@@ -102,7 +103,8 @@ class RagService:
                 Property(name="n_chunk_of_doc", data_type=DataType.INT),
                 Property(name="n_page", data_type=DataType.INT),
                 Property(name="name", data_type=DataType.TEXT),
-                Property(name="file_path", data_type=DataType.TEXT)
+                Property(name="file_path", data_type=DataType.TEXT),
+                Property(name='file_name', data_type=DataType.TEXT)
             ]
             self.vdb.create_collection(name = 'LegalDB', properties=properties)
             self.vdb.set_collection('LegalDB')
@@ -121,7 +123,8 @@ class RagService:
                         'n_chunk_of_doc' : chunk.n_chunk_of_doc,
                         'n_page' : chunk.n_page,
                         'name' : chunk.name,
-                        'file_path' : chunk.file_path } for chunk in all_chunks]
+                        'file_path' : chunk.file_path,
+                         'file_name' : chunk.file_name } for chunk in all_chunks]
             self.vdb.add_objects(objects = objects)
             return {'success' : True, 'files' : paths}
         
@@ -145,7 +148,8 @@ class RagService:
                             'n_chunk_of_doc' : chunk.n_chunk_of_doc,
                             'n_page' : chunk.n_page,
                             'name' : chunk.name,
-                            'file_path' : chunk.file_path } for chunk in chunks]
+                            'file_path' : chunk.file_path,
+                             'file_name' : chunk.file_name } for chunk in chunks]
                 self.vdb.add_objects(objects = objects)
                 return {'success' : True}
             else:
