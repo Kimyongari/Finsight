@@ -38,6 +38,7 @@ async def query_rag(request: RAGRequest) -> AdvancedRAGResponse:
 @router.post("/register")
 async def register(request: RegisterRequest) -> RegisterResponse:
     file_names = request.file_name
+    print(file_names)
     service = VDBService()
     for file_name in file_names:
         result = service.register(file_name = file_name)

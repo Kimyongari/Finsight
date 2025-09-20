@@ -35,7 +35,7 @@ export function ChatForm({
   onClick,
   handleOpenModal,
   loadingPlaceholder = "답변 생성 중입니다.",
-  defaultPlaceholder = "금융과 관련해 질문해주세요.",
+  defaultPlaceholder = "무엇이든 질문해주세요.",
   afterSubmitPlaceholder = "추가 질문을 입력하세요.",
   collectionFiles,
   handleFileDelete,
@@ -57,7 +57,7 @@ export function ChatForm({
   return (
     <div className={inputContainerClass}>
       <div className="w-full flex gap-2 mb-2">
-        <div className="flex flex-1 gap-2 border rounded-lg">
+        <div className="flex flex-1 gap-2 border rounded-lg items-center">
           <RAGDropdown
             hasMessages={hasMessages}
             onSelect={(selectedValue) => setQueryMode(selectedValue)}
@@ -69,8 +69,7 @@ export function ChatForm({
             onKeyDown={onKeyDown}
             placeholder={placeholder}
             disabled={isLoading}
-            className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none overflow-y-hidden border-none"
-            rows={1}
+            className="flex-1 px-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none overflow-y-hidden border-none grid place-items-center"
           />{" "}
           {/* 파일 아이콘 클릭 시 문구 토글 */}
           <div className="relative">

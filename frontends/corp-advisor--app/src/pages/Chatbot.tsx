@@ -21,21 +21,7 @@ const initialMessages: Message[] = [];
 
 function Chatbot() {
   const exampleDocs: RetrievedDoc[] = [
-    {
-      name: "전자 금융 감독",
-      i_page: 3,
-      file_path: "/1111.pdf",
-    },
-    {
-      name: "예시 2",
-      i_page: 2,
-      file_path: "/121.pdf",
-    },
-    {
-      name: "예시 3",
-      i_page: 5,
-      file_path: "/121.pdf",
-    },
+
   ];
   const [retrievedDocs, setRetrievedDocs] =
     useState<RetrievedDoc[]>(exampleDocs);
@@ -313,7 +299,7 @@ function Chatbot() {
             } flex-1`}
           >
             <div
-              className={`${messageListClass} scrollbar-hide flex-1 flex flex-col p-4 space-y-4 max-h-[calc(100vh-4rem)] overflow-auto`}
+              className={`${messageListClass} scrollbar-hide flex-1 flex flex-col p-4 space-y-* max-h-[calc(100vh-4rem)] overflow-auto`}
             >
               {messages.map((msg) => (
                 <Bubble

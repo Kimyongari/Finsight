@@ -22,13 +22,12 @@ export function PdfViewer({
 }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(initialPage);
-  const pdfFile = "/121.pdf"; // public 폴더에 있는 PDF 파일
+  const [inputValue, setInputValue] = useState(initialPage.toString());
+
   useEffect(() => {
     setPageNumber(initialPage);
-    setInputValue(String(initialPage));
+    setInputValue(initialPage.toString());
   }, [initialPage]);
-  // input 제어를 위해 별도 상태 (입력값은 string으로)
-  const [inputValue, setInputValue] = useState(initialPage.toString());
 
   function onDocumentLoadSuccess(pdf: any) {
     setNumPages(pdf.numPages);
@@ -98,7 +97,11 @@ export function PdfViewer({
           overflow: "auto",
         }}
       >
-        <Document file={fileURL} onLoadSuccess={onDocumentLoadSuccess}>
+        <Document
+          key={fileURL} // Force re-mount on file change
+          file={fileURL}
+          onLoadSuccess={onDocumentLoadSuccess}
+        >
           <Page pageNumber={pageNumber} />
         </Document>
       </div>

@@ -124,39 +124,42 @@ function Report() {
   }, []);
 
   const generateReport = async (corpCode?: string) => {
-    const codeToUse = corpCode;
-    if (!codeToUse?.trim()) return;
+  const codeToUse = corpCode;
+  if (!codeToUse?.trim()) return;
 
-    setIsGenerating(true);
-    setSearchTerm("");
+  // ✅ 이전 보고서 메시지 초기화
+  setMessages([]);
+  localStorage.removeItem("chatMessages");
 
-    try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/report/${codeToUse}`,
-        {
-          method: "GET",
-        }
-      );
-      if (!response.ok) throw new Error("네트워크 응답이 실패했습니다.");
-      const data = await response.text();
-      setReportStatus("success");
+  setIsGenerating(true);
+  setSearchTerm("");
 
-      const reportAnswer: Message = {
-        id: Date.now(),
-        type: "answer",
-        text: data,
-      };
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/report/${codeToUse}`, {
+      method: "GET",
+    });
 
-      setMessages((prev) => [...prev, reportAnswer]); // Simplified: just add the final result
-    } catch (err) {
-      alert("입력하신 기업 코드로 검색된 리포트 정보가 없습니다.");
-      console.error("답변을 가져오는 데 실패했습니다:", err);
-      setReportStatus("error");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+    if (!response.ok) throw new Error("네트워크 응답이 실패했습니다.");
+    const data = await response.text();
 
+    setReportStatus("success");
+
+    const reportAnswer: Message = {
+      id: Date.now(),
+      type: "answer",
+      text: data,
+    };
+
+    // ✅ 이전 메시지가 아니라 완전히 새 메시지만 추가
+    setMessages([reportAnswer]);
+  } catch (err) {
+    alert("입력하신 기업 코드로 검색된 리포트 정보가 없습니다.");
+    console.error("답변을 가져오는 데 실패했습니다:", err);
+    setReportStatus("error");
+  } finally {
+    setIsGenerating(false);
+  }
+};
   const inputContainerClass =
     deviceType === "mobile" ? "w-full" : "w-2/3 mx-auto";
   const messageListClass =

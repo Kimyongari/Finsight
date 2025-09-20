@@ -314,7 +314,7 @@ class report_workflow:
 ## I. 기업 개요
 {company_info_formatted}
 
-## II. 재무 상황
+## II. 재무 제표
 {{FINANCIAL_STATEMENT_PLACEHOLDER}}
 
 ## III. 핵심 투자지표 분석

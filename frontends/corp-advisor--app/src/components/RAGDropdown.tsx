@@ -17,7 +17,7 @@ type RAGDropdownProps = {
 export function RAGDropdown({ onSelect, hasMessages }: RAGDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   // 선택된 옵션 객체 전체를 저장하거나, label만 저장
-  const [selectedLabel, setSelectedLabel] = useState<string>("답변 방식");
+  const [selectedLabel, setSelectedLabel] = useState<string>("일반 분석");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
