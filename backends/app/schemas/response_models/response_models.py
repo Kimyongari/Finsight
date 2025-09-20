@@ -41,3 +41,12 @@ class WebSearchResponse(BaseModel):
     answer: str
     success: bool
     search_results: list[dict]
+
+class ShowResponse(BaseModel):
+    success: bool
+    msg : str
+    unique_file_name_and_chunk : list[dict]
+
+class DeleteObjectsResponse(BaseModel):
+    success: bool
+    msg: str

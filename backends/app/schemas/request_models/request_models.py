@@ -16,6 +16,9 @@ class KeywordRequest(BaseModel):
 class RegisterRequest(BaseModel):
     file_name: List[str]
 
+class DeleteObjectsRequest(BaseModel):
+    file_name: str
+
 # ✅ 파일 다운로드 요청 모델
 class FileDownloadRequest(BaseModel):
     file_name: str
