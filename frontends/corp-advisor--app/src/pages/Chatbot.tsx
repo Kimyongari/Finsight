@@ -296,7 +296,7 @@ function Chatbot() {
             } flex-1`}
           >
             <div
-              className={`${messageListClass} scrollbar-hide flex-1 flex flex-col p-4 space-y-* max-h-[calc(100vh-4rem)] overflow-auto`}
+              className={`${messageListClass} gap-4 scrollbar-hide flex-1 flex flex-col p-4 space-y-* max-h-[calc(100vh-4rem)] overflow-auto`}
             >
               {messages.map((msg) => (
                 <Bubble
