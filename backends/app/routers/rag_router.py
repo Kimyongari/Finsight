@@ -1,6 +1,7 @@
 import os
 from fastapi import APIRouter
 from ..services.rag_service import RagService
+from ..services.vanilla_rag_workflow_service import vanilla_rag_workflow
 from ..schemas.request_models.request_models import RAGRequest, RegisterRequest
 from ..schemas.response_models.response_models import RAGResponse, RegisterResponse, ResetResponse, InitResponse
 
@@ -13,9 +14,9 @@ async def get_rag_status():
 @router.post("/query")
 async def query_rag(request: RAGRequest) -> RAGResponse:
     user_query = request.query
-    service = RagService()
-    response = service.generate_answer(query=user_query)
-    
+    workflow = vanilla_rag_workflow()
+    response = workflow.run(question = user_query)
+        
     if 'err_msg' in response:
         return RAGResponse(success = response['success'], answer = response['err_msg'], retrieved_documents=[{}])
     else:

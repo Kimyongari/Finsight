@@ -87,14 +87,13 @@ class advanced_rag_workflow:
 - 다른 말은 절대 하지 않고 참조 법령 조항만 출력 형식에 맞게 출력하세요.
 """
         user_input = f"제공된 문서 : {contexts}"
-        print(user_input)
-        print(retrieved_documents)
         result = self.llm.call(system_prompt=system_prompt, user_input=user_input)
         try:
             references = []
             result = [i.replace(' ','') for i in result.split(',')]
             for name in result:
-                reference = self.vdb.query_hybrid_with_filter(name = reference)
+                reference = self.vdb.query_hybrid_with_filter(name = name)
+                print(reference)
                 references.append(reference)
             return {'references' : references}
         except Exception as e:

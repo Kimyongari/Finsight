@@ -249,7 +249,9 @@ class VectorDB:
                 limit = 1,
                 filters=Filter.by_property("name").equal(name),
             )
-            results = [i.properties for i in results.objects]
+            if results:
+                return results.objects.properties
+            else:
+                return {}
         else:
             raise ValueError("Collection이 지정되지 않았습니다. set_collection()으로 먼저 설정하세요.")
-        return results

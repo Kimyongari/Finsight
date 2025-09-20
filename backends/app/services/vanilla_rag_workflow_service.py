@@ -67,5 +67,9 @@ class vanilla_rag_workflow:
 
     def run(self, question):
         input = vanilla_rag_state(user_question=question, retrieved_documents=[{}], answer='')
-        result = self.workflow.invoke(input=input)
-        return result
+        try:
+            result = self.workflow.invoke(input=input)
+            response = {'success' : True, 'answer' : result['answer'], 'retrieved_documents' : result['retrieved_documents']}
+        except Exception as e:
+            response = {'success' : False, 'err_msg' : e}
+            return response
