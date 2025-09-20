@@ -72,33 +72,39 @@ class financial_statements_extractor:
         # 💡 항상 DataFrame을 반환하도록 수정
         return df
     
-    def _extract_statements(self, url):
+    def _extract_statements(self, url, mode = 'html'):
         html = self.url2html(url)
-        dfs = pd.read_html(html)
-        dfs_markdown = []
-        for df in dfs:
-            if isinstance(df, pd.DataFrame):
-                # 1. 데이터프레임을 먼저 정리
-                cleaned_df = self.clean_dataframe(df)
+        if mode == 'html':
+            financial_statement = html
+            return html
+        elif mode == 'markdown':
+            dfs = pd.read_html(html)
+            dfs_markdown = []
+            for df in dfs:
+                if isinstance(df, pd.DataFrame):
+                    # 1. 데이터프레임을 먼저 정리
+                    cleaned_df = self.clean_dataframe(df)
 
-                # 2. 정리된 데이터프레임의 컬럼 수에 따라 분기
-                if cleaned_df.shape[1] == 1:
-                    # 컬럼이 1개면 직접 문자열로 변환
-                    content = '\n\n'.join([str(item) for sublist in cleaned_df.values.tolist() for item in sublist])
-                    dfs_markdown.append(content)
+                    # 2. 정리된 데이터프레임의 컬럼 수에 따라 분기
+                    if cleaned_df.shape[1] == 1:
+                        # 컬럼이 1개면 직접 문자열로 변환
+                        content = '\n\n'.join([str(item) for sublist in cleaned_df.values.tolist() for item in sublist])
+                        dfs_markdown.append(content)
+                    else:
+                        # 컬럼이 여러 개면 to_markdown 호출
+                        dfs_markdown.append(cleaned_df.to_markdown(index=False))
                 else:
-                    # 컬럼이 여러 개면 to_markdown 호출
-                    dfs_markdown.append(cleaned_df.to_markdown(index=False))
-            else:
-                # DataFrame이 아닌 다른 타입은 그대로 추가
-                dfs_markdown.append(df)
+                    # DataFrame이 아닌 다른 타입은 그대로 추가
+                    dfs_markdown.append(df)
 
-        # financial_statement 합치는 코드는 동일
-        financial_statement = ''
-        for item in dfs_markdown:
-            financial_statement += '\n' + str(item) + '\n' # str(item)으로 안정성 추가
+            # financial_statement 합치는 코드는 동일
+            financial_statement = ''
+            for item in dfs_markdown:
+                financial_statement += '\n' + str(item) + '\n' # str(item)으로 안정성 추가
 
-        return financial_statement
+            return financial_statement
+        else:
+            raise ValueError("mode가 설정되지 않았습니다. html, markdown 중 하나를 선택하세요.")
     
     # 00266961
     def get_recent_report(self, corp_code: str) -> str:
@@ -137,9 +143,9 @@ class financial_statements_extractor:
         statement_url = urls.iloc[idx]['url']
         return statement_url
 
-    def extract_statement(self, corp_code:str)->str:
+    def extract_statement(self, corp_code:str, mode = 'html')->str:
         recent_rcept_no = self.get_recent_report(corp_code = corp_code)
         statement_idx = self.infer_statement_idx(rcept_no = recent_rcept_no)
         statement_url = self.get_statemnets_url(idx = statement_idx, rcept_no = recent_rcept_no)
-        financial_statement = self._extract_statements(url = statement_url)
+        financial_statement = self._extract_statements(url = statement_url, mode = mode)
         return financial_statement
