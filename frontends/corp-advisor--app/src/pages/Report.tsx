@@ -21,6 +21,13 @@ const HtmlWithScriptsRenderer = ({ htmlString }: { htmlString: string }) => {
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = htmlString;
 
+    // Force links to open in a new tab
+    const links = Array.from(tempDiv.querySelectorAll("a"));
+    links.forEach((link) => {
+      link.setAttribute("target", "_blank");
+      link.setAttribute("rel", "noopener noreferrer"); // For security
+    });
+
     const scripts = Array.from(tempDiv.querySelectorAll("script"));
 
     // Append non-script HTML content first

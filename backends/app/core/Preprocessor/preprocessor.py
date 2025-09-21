@@ -214,7 +214,7 @@ class DocumentProcessor:
                     for chunk_on_page_idx, chunk_text in enumerate(chunks):
                         page_index = -1
                         for p_idx, page in enumerate(doc):
-                            test_str = chunk_text.strip()[:10].strip()
+                            test_str = chunk_text[:10]
                             if test_str and test_str in page.get_text():
                                 page_index = p_idx
                                 break
