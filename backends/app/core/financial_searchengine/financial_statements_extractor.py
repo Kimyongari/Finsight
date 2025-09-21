@@ -76,6 +76,7 @@ class financial_statements_extractor:
     def extract_main_content(self, html_content: str) -> str:
         """
         HTML 전체에서 <body> 내부의 실제 콘텐츠만 추출하는 함수
+        목차 링크와 불필요한 태그들을 제거합니다.
         """
         # HTML 파싱
         soup = BeautifulSoup(html_content, "lxml")
@@ -85,10 +86,43 @@ class financial_statements_extractor:
         if not body:
             raise ValueError("HTML에 <body> 태그가 없습니다.")
 
+        # 목차 관련 태그들 제거
+        self._remove_toc_elements(body)
+
         # <body> 내부의 컨텐츠만 가져오기 (HTML 문자열로 변환)
         main_content = "".join(str(child) for child in body.contents if child.name or child.strip())
 
         return main_content.strip()
+
+    def _remove_toc_elements(self, soup):
+        """
+        목차 관련 불필요한 요소들을 제거하는 함수
+        """
+        # 1. class가 "section-2"인 p 태그들 제거 (4. 재무제표 같은 목차)
+        for p in soup.find_all('p', class_='section-2'):
+            p.decompose()
+
+        # 2. class가 "table-group-xbrl"인 p 태그들 제거 (4-1. 재무상태표 같은 하위 목차)
+        for p in soup.find_all('p', class_='table-group-xbrl'):
+            p.decompose()
+
+        # 3. name 속성이 "toc"로 시작하는 a 태그들을 포함한 p 태그 제거
+        for a in soup.find_all('a', attrs={'name': lambda x: x and x.startswith('toc')}):
+            parent = a.parent
+            if parent and parent.name == 'p':
+                parent.decompose()
+            else:
+                a.decompose()
+
+        # 4. 텍스트가 번호 형식 (예: "4. 재무제표", "4-1. 재무상태표")인 p 태그들 제거
+        import re
+        for p in soup.find_all('p'):
+            text = p.get_text().strip()
+            # 숫자로 시작하고 점이나 하이픈이 포함된 목차 형식 패턴
+            if re.match(r'^\d+[\-\.]?\s*\d*[\.]?\s*[가-힣\w\s]+$', text) and len(text) < 50:
+                # 테이블 내부가 아닌 경우만 제거 (실제 재무데이터와 구분)
+                if not p.find_parent('table'):
+                    p.decompose()
     def _extract_statements(self, url, mode = 'html'):
         html = self.url2html(url)
         if mode == 'html':
