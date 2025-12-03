@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import requests
 from bs4 import BeautifulSoup, Tag
 import pandas as pd
-from ..llm.llm import Midm
+from ..llm.llm import Midm, Gemini
 from bs4 import BeautifulSoup
 
 
@@ -13,7 +13,8 @@ load_dotenv()
 class financial_statements_extractor:
     def __init__(self):
         self.dart = OpenDartReader(api_key = os.getenv('OPENDART_API_KEY'))
-        self.midm = Midm()
+        # self.midm = Midm()
+        self.midm = Gemini()
     def url2html(self, url: str) -> str:
         """
         URL을 입력받아 HTML 내용을 가져온 후 BeautifulSoup 객체로 변환합니다.

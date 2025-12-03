@@ -2,7 +2,7 @@ import asyncio
 import os
 from datetime import datetime, timedelta
 from langgraph.graph import StateGraph, START, END
-from app.core.llm.llm import Midm
+from app.core.llm.llm import Midm,Gemini
 from app.core.financial_searchengine.dart_extractor import DartExtractor
 from app.core.financial_searchengine.financial_statements_extractor import (
     financial_statements_extractor,
@@ -26,7 +26,7 @@ class report_workflow:
 
     def __init__(self):
         load_dotenv()
-        self.llm = Midm()
+        self.llm = Gemini()
         self.dart_extractor = DartExtractor()
         self.financial_extractor = financial_statements_extractor()
         self.workflow = self.setup()

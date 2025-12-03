@@ -1,7 +1,7 @@
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START, END
 from langchain.schema.messages import HumanMessage, SystemMessage
-from app.core.llm.llm import Midm
+from app.core.llm.llm import Midm, Gemini
 from app.core.VDB.weaviateVDB import VectorDB
 from dotenv import load_dotenv
 from app.schemas.langraph_states.state_models import vanilla_rag_state
@@ -10,7 +10,7 @@ from app.schemas.langraph_states.state_models import vanilla_rag_state
 class vanilla_rag_workflow:
     def __init__(self):
         load_dotenv()
-        self.llm = Midm()
+        self.llm = Gemini()
         self.vdb = VectorDB()
         self.vdb.set_collection('LegalDB')
         self.workflow = self.setup()

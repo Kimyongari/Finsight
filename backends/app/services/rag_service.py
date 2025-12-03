@@ -1,7 +1,7 @@
 from ..core.VDB.weaviateVDB import VectorDB
 from ..core.Preprocessor.preprocessor import DocumentProcessor
 from weaviate.classes.config import Property, DataType
-from ..core.llm.llm import Midm
+from ..core.llm.llm import Midm, Gemini
 from glob import glob
 
 class RagService:
@@ -26,7 +26,7 @@ class RagService:
             ]
             self.vdb.create_collection(name = 'LegalDB', properties=properties)
             self.vdb.set_collection('LegalDB')
-        self.llm = Midm()
+        self.llm = Gemini()
 
     def retriever(self, query:str, topk=4) -> dict:
         try:
