@@ -52,7 +52,6 @@ class advanced_rag_workflow:
 """
         user_input = f"제공된 문서 : {contexts}"
         result = self.llm.call(system_prompt=system_prompt, user_input=user_input)
-        print("검색된 참조 조항:",result)
         try:
             references = []
             result = [i.replace(' ','') for i in result.split(',')]
@@ -65,7 +64,7 @@ class advanced_rag_workflow:
                     else:
                         print(name,'에 해당하는 참조 조문이 vdb 내에 존재하여 참조 조문 목록에 추가하려 했으나 이미 검색된 문서에 존재하여 스킵합니다.')
                 else:
-                    print(name,'에 해당하는 참조 조문이 vdb 내에 없습니다.')
+                    pass
             return {'references' : references}
             
         except Exception as e:
