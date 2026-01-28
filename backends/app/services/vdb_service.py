@@ -8,6 +8,7 @@ import time
 
 class VDBService:
     def __init__(self, url=None, http_port=None, grpc_port=None):
+        self.url = url
         self.vdb = VectorDB(url=url, http_port=http_port, grpc_port=grpc_port)
         if 'LegalDB' in self.vdb.show_collection():
             self.vdb.set_collection('LegalDB')
@@ -28,14 +29,14 @@ class VDBService:
             ]
             self.vdb.create_collection(name = 'LegalDB', properties=properties)
             self.vdb.set_collection('LegalDB')
+        self.processor = DocumentProcessor()
 
-    def initialize(self):
+    def initialize(self, url=None, http_prot = None, grpc_port = None):
         try:
-
             paths = glob('./pdfs/*.pdf')
             files = [path.split('/')[-1] for path in paths]
             self.vdb.reset()
-            self.__init__()
+            self.__init__(url = url, http_port = http_prot, grpc_port = grpc_port)
             for file_name in files:
                 response = self.register(file_name = file_name)
                 if response['success']:
@@ -43,16 +44,15 @@ class VDBService:
                 else:
                     print(file_name, '적재 중 오류 발생', response['err_msg'])
             return {'success' : True, 'files' : paths}
-        
+
         except Exception as e:
             print('Error during initialization:', str(e))
             return {'success' : False, 'err_msg' : str(e)}
-        
+
     def register(self, file_name):
         path = f'./pdfs/{file_name}'
         try:
-            processor = DocumentProcessor()
-            chunks = processor.preprocess(file_path = path)
+            chunks = self.processor.preprocess(file_path = path)
             if self.vdb.check(name = 'LegalDB'):
                 objects = [{'text' : chunk.text,
                             'n_char' : chunk.n_char,
@@ -66,11 +66,9 @@ class VDBService:
                             'name' : chunk.name,
                             'file_path' : chunk.file_path,
                              'file_name' : chunk.file_name } for chunk in chunks]
-                self.vdb.add_objects(objects = objects)
-                return {'success' : True}
-            else:
-                return {'success' : False}
-    
+                self.vdb.add_objects(objects = objects, file_name = file_name)
+                return {'success' : True, 'err_msg' : None}
+
         except Exception as e:
             print('Error during initialization:', str(e))
             return {'success' : False, 'err_msg' : str(e)}

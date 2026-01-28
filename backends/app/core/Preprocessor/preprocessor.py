@@ -1,12 +1,11 @@
 import requests
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from collections import defaultdict
 from langchain_core.documents import Document
 import re
 import fitz
 from pydantic import BaseModel
 from datetime import datetime
-from ..llm.llm import Midm, Gemini
+from ..llm.llm import Midm, Gemini, SK, LG, OpenRouterLLM
 
 import json
 from typing import Optional
@@ -27,16 +26,22 @@ class VectorMeta(BaseModel):
     name: Optional[str] = None
 
 class DocumentProcessor:
-    def __init__(self):
+    def __init__(self, llm_type:str = None):
         self.all_text = ''
         self.legal_name = ''
         # It's good practice to initialize all instance variables in __init__
         self.file_path = ''
-        self.splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=200)
+        if llm_type == "SK":
+            self.llm = SK()
+        elif llm_type == "LG":
+            self.llm = LG()
+        elif llm_type == 'Gemini':
+            self.llm = Gemini()
+        else:
+            self.llm = OpenRouterLLM()
 
 
     def name_finder(self, texts):
-        model = Gemini()
         system_prompt = '''당신은 법률 문서를 분석하는 전문가입니다. 사용자가 제공한 문서를 읽고, 문서 안에 기재된 법의 제목을 정확히 찾아서 출력하세요.
 
 지침:
@@ -60,7 +65,7 @@ class DocumentProcessor:
 예시 출력:
 개인정보 보호법 시행령'''
         user_input = f'문서 : {texts}\n\n제목 :'
-        response = model.call(system_prompt=system_prompt, user_input=user_input)
+        response = self.llm.call(system_prompt=system_prompt, user_input=user_input)
         return response
         
     def load_documents(self, file_path):
@@ -221,7 +226,7 @@ class DocumentProcessor:
                     current_article_index = current_article_match.start()
                     search_pos = current_article_match.end()
                     
-                    # 페이지 번호를 매핑!
+                    # 페이지 번호를 매핑
                     page_number = find_page_for_index(current_article_index + start_idx_match.start(), page_char_map)
 
                     end_index = len(all_text)

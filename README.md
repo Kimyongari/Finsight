@@ -64,12 +64,14 @@ API는 각각 특정 도메인을 처리하는 여러 라우터로 나뉘며, �
 - Docker 및 Docker Compose
 - `.env` 구성:
 ```
-OPENDART_API_KEY
-NAVERCLOUD_HOST
-NAVER_CLOVA_API_KEY
-SERPAPI_API_KEY
-RUNPOD_BASE_URL
-RUNPOD_API_KEY
+OPENDART_API_KEY=
+NAVERCLOUD_HOST=
+NAVER_CLOVA_API_KEY=
+SEARCHAPI_KEY=
+OPENROUTER_KEY=
+OPENROUTER_BASE_URL=
+MODEL=
+WEAVIATE_URL=
 ```
 
 ### 설치 및 설정
@@ -80,20 +82,7 @@ RUNPOD_API_KEY
     cd Finsight
     ```
 
-2.  **가상 환경 설정 및 의존성 설치**
+2.  **Docker Container Setting**
     ```bash
-    python -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
-    ```
-
-3.  **Weaviate 벡터 데이터베이스 시작**
-    ```bash
-    docker compose up -d
-    ```
-
-4.  **FastAPI 서버 실행:**
-    ```bash
-    cd backends
-    uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    docker dompose up -d --build
     ```

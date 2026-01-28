@@ -162,9 +162,12 @@ class VectorDB:
     
             
 # 특정 collection에 vector와 함께 다수의 object를 추가합니다.
-    def add_objects(self, objects:list[dict]):
+    def add_objects(self, objects:list[dict], file_name:str = None):
         collection = self.collection
-        print(len(objects),'개의 파일을 적재합니다...')
+        if file_name:
+            print('file_name:', file_name, '|', len(objects), '개의 청크을 적재합니다...')
+        else:
+            print(len(objects),'개의 청크을 적재합니다...')
         if getattr(self.collection, 'exists', None):        
             if collection.exists():
                 with collection.batch.fixed_size(batch_size=32) as batch:

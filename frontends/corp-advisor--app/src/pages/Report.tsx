@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useChat } from "../ChatContext.tsx";
-import { useCorpData, FinancialRecord } from "../hooks/useCorpData.ts";
+import { useCorpData } from "../hooks/useCorpData.ts";
 import { Table } from "../components/Table.tsx";
 import { Button } from "../components/Button.tsx";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { SendHorizonal } from "lucide-react";
+import { SendHorizonal, ChevronLeft } from "lucide-react";
 import { LoadingSpinner } from "../components/LoadingSpinner.tsx";
 
 const HtmlWithScriptsRenderer = ({ htmlString }: { htmlString: string }) => {
@@ -87,6 +86,7 @@ type Message = {
 };
 
 function Report() {
+  const navigate = useNavigate();
   const getDeviceType = () => {
     const width = window.innerWidth;
     if (width <= 768) return "mobile";
@@ -171,14 +171,23 @@ function Report() {
     }
   };
   const inputContainerClass =
-    deviceType === "mobile" ? "w-full" : "w-2/3 mx-auto";
+    deviceType === "mobile" ? "w-full" : "w-4/5 mx-auto";
   const messageListClass =
-    deviceType === "mobile" ? "p-4" : "w-1/2 mx-auto p-4";
+    deviceType === "mobile" ? "p-4" : "w-4/5 mx-auto p-4";
 
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="w-full flex flex-col justify-center items-start min-h-screen bg-white font-sans">
+    <div className="w-full flex flex-col justify-center items-start min-h-screen bg-white font-sans relative">
+      {/* Home Button */}
+      <button
+        onClick={() => navigate("/")}
+        className="absolute top-4 left-4 z-10 flex items-center gap-1 px-3 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors text-gray-600 font-medium"
+      >
+        <ChevronLeft size={20} />
+        <span>홈으로</span>
+      </button>
+
       {reportStatus === "success" ? (
         <>
           <main className="w-full flex-1 overflow-y-auto pb-32">

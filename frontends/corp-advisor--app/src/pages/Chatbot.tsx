@@ -1,12 +1,15 @@
 // Chatbot.tsx
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { ChevronLeft } from "lucide-react";
 
 import { ChatForm } from "../components/ChatForm";
 import { Bubble } from "../components/Bubble";
 import { Modal } from "../components/steps/Modal";
 import { PdfViewer } from "../components/PdfViewer";
 import { LoadingSpinner } from "../components/LoadingSpinner";
-import { Message, CollectionFile } from "../types"; // Message, CollectionFile 타입을 types/index.ts 등에서 가져오도록 수정
+import { Message } from "../ChatContext";
+import { CollectionFile } from "../hooks/useCollectionFiles";
 import { useCollectionFiles } from "../hooks/useCollectionFiles";
 import { useDynamicQuery, QueryMode } from "../hooks/useDynamicQuery";
 
@@ -20,6 +23,7 @@ type RetrievedDoc = {
 const initialMessages: Message[] = [];
 
 function Chatbot() {
+  const navigate = useNavigate();
   const exampleDocs: RetrievedDoc[] = [];
   const [retrievedDocs, setRetrievedDocs] =
     useState<RetrievedDoc[]>(exampleDocs);
@@ -197,10 +201,11 @@ function Chatbot() {
     return "desktop";
   }
 
-  const inputContainerClass = "w-full";
+  const inputContainerClass =
+    deviceType === "mobile" ? "w-full" : "w-[80%] mx-auto";
 
   const messageListClass =
-    deviceType === "mobile" ? "p-4" : "w-1/2 mx-auto p-4";
+    deviceType === "mobile" ? "p-4" : "w-[80%] mx-auto p-4";
 
   const hasMessages = messages.length > 0;
 
@@ -237,15 +242,15 @@ function Chatbot() {
   const [pageNum, setPageNum] = useState(1);
   const [pdfWidth, setPdfWidth] = useState(400);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [currentPdfFileName, setCurrentPdfFileName] = useState<string | null>(null);
 
   const handleClosePdf = () => setIsPdfVisible(false);
 
   const handleCiteClick = async (fileName: string, page: number) => {
-    if (pageNum !== page || !isPdfVisible) {
-      setPageNum(page);
-      setIsPdfVisible(true);
-    } else if (pageNum === page && pdfUrl) {
-      setIsPdfVisible((prev) => !prev);
+    setPageNum(page);
+    setIsPdfVisible(true);
+
+    if (currentPdfFileName === fileName && pdfUrl) {
       return;
     }
 
@@ -261,6 +266,7 @@ function Chatbot() {
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
+      setCurrentPdfFileName(fileName);
       setIsPdfVisible(true);
     } catch (err) {
       console.error(err);
@@ -287,7 +293,16 @@ function Chatbot() {
 
   // --- 렌더링 ---
   return (
-    <div className="w-full flex flex-col justify-center items-center h-screen bg-white font-sans">
+    <div className="w-full flex flex-col justify-center items-center h-screen bg-white font-sans relative">
+      {/* Home Button */}
+      <button
+        onClick={() => navigate("/")}
+        className="absolute top-4 left-4 z-10 flex items-center gap-1 px-3 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors text-gray-600 font-medium"
+      >
+        <ChevronLeft size={20} />
+        <span>홈으로</span>
+      </button>
+
       {hasMessages ? (
         <>
           <main
@@ -360,7 +375,7 @@ function Chatbot() {
               ? "w-full"
               : deviceType === "tablet"
               ? "w-3/4"
-              : "w-1/2"
+              : "w-[80%]"
           } flex flex-col justify-center items-center h-full gap-6 p-4`}
         >
           <header className="text-center">

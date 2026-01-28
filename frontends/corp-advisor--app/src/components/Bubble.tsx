@@ -22,8 +22,8 @@ export function Bubble({
   isQuestion,
   answerClass = `rounded-2xl break-words p-4 text-justify shadow-sm ${
     isQuestion
-      ? "text-gray-800 max-w-[80%] md:max-w-[70%] bg-indigo-50 rounded-br-none"
-      : "max-w-[90%] md:max-w-[80%] border-gray-100 text-gray-800 border border-solid rounded-bl-none"
+      ? "text-gray-800 max-w-[80%] md:max-w-[85%] bg-indigo-50 rounded-br-none"
+      : "max-w-[90%] md:max-w-[95%] border-gray-100 text-gray-800 border border-solid rounded-bl-none"
   }`,
   cites,
   isLoading,
@@ -40,7 +40,14 @@ export function Bubble({
       return (
         <>
           <div className="prose max-w-none w-full mb-4">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                a: ({ node, ...props }) => (
+                  <a {...props} target="_blank" rel="noopener noreferrer" />
+                ),
+              }}
+            >
               {msg.text + (msg.isStreaming ? "\n" : "")}
             </ReactMarkdown>
           </div>

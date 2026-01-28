@@ -40,8 +40,8 @@ class WebSearchTool:
         self.query = query
         self.num_results = num_results
         self.time_period_months = time_period_months
-        self.api_key = os.getenv("SERPAPI_API_KEY")
-        self.base_url = "https://serpapi.com/search.json"
+        self.api_key = os.getenv("SEARCHAPI_KEY")
+        self.base_url = "https://www.searchapi.io/api/v1/search"
 
     def _get_time_filter(self) -> str:
         """검색 기간에 따른 Google 검색 시간 필터를 생성합니다."""
@@ -59,12 +59,16 @@ class WebSearchTool:
     async def _fetch_search_results(self, num_to_fetch: int) -> list:
         """SerpAPI를 호출하여 검색 결과를 비동기적으로 가져옵니다."""
         if not self.api_key:
-            print("[오류] SERPAPI_API_KEY가 .env 파일에 설정되지 않았습니다.")
-            raise ValueError("SERPAPI_API_KEY가 .env 파일에 설정되지 않았습니다.")
+            # print("[오류] SERPAPI_API_KEY가 .env 파일에 설정되지 않았습니다.")
+            # raise ValueError("SERPAPI_API_KEY가 .env 파일에 설정되지 않았습니다.")
+
+            print("[오류] SERARCHAPI_KEY가 .env 파일에 설정되지 않았습니다.")
+            raise ValueError("SEARCHAPI_KEY가 .env 파일에 설정되지 않았습니다.")
 
         # 최신 검색 결과를 위한 시간 필터 추가
         time_filter = self._get_time_filter()
         search_query = f"{self.query} {time_filter}" if time_filter else self.query
+
 
         params = {
             "engine": "google",

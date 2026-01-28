@@ -39,8 +39,8 @@ class NewsSearchTool:
         self.query = query
         self.num_results = num_results
         self.time_period_months = time_period_months
-        self.api_key = os.getenv("SERPAPI_API_KEY")
-        self.base_url = "https://serpapi.com/search.json"
+        self.api_key = os.getenv("SEARCHAPI_KEY")
+        self.base_url = "https://www.searchapi.io/api/v1/search"
 
     def _get_time_filter(self) -> str:
         """검색 기간에 따른 Naver 검색 시간 필터를 생성합니다."""
@@ -58,17 +58,19 @@ class NewsSearchTool:
     async def _fetch_news_results(self, num_to_fetch: int) -> list:
         """SerpAPI를 호출하여 네이버 뉴스 검색 결과를 비동기적으로 가져옵니다."""
         if not self.api_key:
-            print("[오류] SERPAPI_API_KEY가 .env 파일에 설정되지 않았습니다.")
-            raise ValueError("SERPAPI_API_KEY가 .env 파일에 설정되지 않았습니다.")
+            # print("[오류] SERPAPI_API_KEY가 .env 파일에 설정되지 않았습니다.")
+            # raise ValueError("SERPAPI_API_KEY가 .env 파일에 설정되지 않았습니다.")
+
+            print("[오류] SERARCHAPI_KEY가 .env 파일에 설정되지 않았습니다.")
+            raise ValueError("SEARCHAPI_KEY가 .env 파일에 설정되지 않았습니다.")
 
         # 네이버 뉴스 검색을 위한 파라미터
         params = {
-            "engine": "naver",
-            "query": self.query,
-            "where": "news",  # 뉴스 검색 지정
+            "engine": "google_news",
+            "q": self.query,
             "api_key": self.api_key,
             "period": self._get_time_filter(),  # 시간 필터
-            "sort_by": "r",  # 최신순 정렬
+            "sort_by": "most_recent",  # 최신순 정렬
             "num": num_to_fetch
         }
 
@@ -77,7 +79,7 @@ class NewsSearchTool:
                 response = await client.get(self.base_url, params=params, timeout=10.0)
                 response.raise_for_status()
                 results = response.json()
-                return results.get("news_results", [])
+                return results.get("organic_results", [])
         except httpx.RequestError as e:
             print(f"[오류] SerpAPI 요청 중 오류 발생: {e}")
             return []

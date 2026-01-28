@@ -3,8 +3,9 @@ import os
 from dotenv import load_dotenv
 import requests
 from bs4 import BeautifulSoup, Tag
+import io
 import pandas as pd
-from ..llm.llm import Midm, Gemini
+from ..llm.llm import Midm, Gemini, OpenRouterLLM
 from bs4 import BeautifulSoup
 
 
@@ -13,8 +14,8 @@ load_dotenv()
 class financial_statements_extractor:
     def __init__(self):
         self.dart = OpenDartReader(api_key = os.getenv('OPENDART_API_KEY'))
-        # self.midm = Midm()
-        self.midm = Gemini()
+        self.llm = OpenRouterLLM()
+
     def url2html(self, url: str) -> str:
         """
         URL을 입력받아 HTML 내용을 가져온 후 BeautifulSoup 객체로 변환합니다.
@@ -130,7 +131,7 @@ class financial_statements_extractor:
             financial_statement = self.extract_main_content(html)
             return financial_statement
         elif mode == 'markdown':
-            dfs = pd.read_html(html)
+            dfs = pd.read_html(io.StringIO(html))
             dfs_markdown = []
             for df in dfs:
                 if isinstance(df, pd.DataFrame):
@@ -177,7 +178,7 @@ class financial_statements_extractor:
         3. 인덱스를 찾을 수 없을 경우, '-1'만 출력하세요."""
          
         idxs =  str({i : value for i, value in enumerate(self.dart.sub_docs(rcept_no)['title'].values.tolist())})
-        idx = self.midm.call(system_prompt=system_prompt, user_input=idxs)
+        idx = self.llm.call(system_prompt=system_prompt, user_input=idxs)
         
         self.reports = self.dart.sub_docs(rcept_no)
         self.idx = idx

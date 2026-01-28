@@ -29,7 +29,7 @@ async def get_naver_embedding(text: str, max_retries: int = 5) -> list[float]:
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.post(
-                    f"{NAVER_CLOUD_API_HOST}{NAVER_EMBEDDING_URI}",
+                    f"https://{NAVER_CLOUD_API_HOST}{NAVER_EMBEDDING_URI}",
                     json=payload,
                     headers=headers,
                     timeout=30.0,

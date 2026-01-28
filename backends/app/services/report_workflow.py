@@ -2,7 +2,7 @@ import asyncio
 import os
 from datetime import datetime, timedelta
 from langgraph.graph import StateGraph, START, END
-from app.core.llm.llm import Midm,Gemini
+from app.core.llm.llm import OpenRouterLLM, SK, LG, Gemini
 from app.core.financial_searchengine.dart_extractor import DartExtractor
 from app.core.financial_searchengine.financial_statements_extractor import (
     financial_statements_extractor,
@@ -24,9 +24,16 @@ class report_workflow:
     종합 결론까지 포함한 완전한 분석 보고서를 HTML 형식으로 생성합니다.
     """
 
-    def __init__(self):
+    def __init__(self, llm_type:str = None):
         load_dotenv()
-        self.llm = Gemini()
+        if llm_type == "SK":
+            self.llm = SK()
+        elif llm_type == "LG":
+            self.llm = LG()
+        elif llm_type == 'Gemini':
+            self.llm = Gemini()
+        else:
+            self.llm = OpenRouterLLM()
         self.dart_extractor = DartExtractor()
         self.financial_extractor = financial_statements_extractor()
         self.workflow = self.setup()
@@ -301,7 +308,7 @@ class report_workflow:
         analyzed_news = state.analyzed_news
         news_summary_parts = []
         for news_item in analyzed_news:
-            header = f"#### [{news_item['title']}]({news_item['link']}) ({news_item['date']})"
+            header = f"#### [{news_item['title']}]({news_item['link']})"
             body = f"- **카테고리:** [{news_item['category']}]\n- **핵심 요약:** {news_item['summary']}\n- **영향 분석:** {news_item['analysis']}"
             news_summary_parts.append(f"{header}\n{body}")
 

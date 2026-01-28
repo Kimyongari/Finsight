@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 from langgraph.graph import StateGraph, START, END
-from app.core.llm.llm import Midm, SK, LG, Gemini
+from app.core.llm.llm import Midm, SK, LG, Gemini, OpenRouterLLM
 from app.core.web_search_agent.embedding import get_naver_embedding, cosine_similarity
 from app.core.web_search_agent.web_search import WebSearchTool
 from app.schemas.langraph_states.state_models import web_agent_state
@@ -23,8 +23,10 @@ class web_agent_workflow:
             self.llm = SK()
         elif llm_type == "LG":
             self.llm = LG()
-        else:  # 기본값은 Midm
+        elif llm_type == 'Gemini':
             self.llm = Gemini()
+        else:
+            self.llm = OpenRouterLLM()
         
         if web_search_tool_class is None:
             self.web_search_tool_class = WebSearchTool
