@@ -14,6 +14,7 @@ export type Message = {
   pdfUrl?: string | null;
   isPdfVisible?: boolean;
   pageNum?: number;
+  cites?: any[];
 };
 
 type ChatContextType = {

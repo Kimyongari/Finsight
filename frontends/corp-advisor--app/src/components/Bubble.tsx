@@ -4,9 +4,14 @@ import remarkGfm from "remark-gfm";
 import { Message } from "../ChatContext";
 // 출처
 type RetrievedDoc = {
-  name: string;
-  i_page: number;
-  file_path: string;
+  name?: string;
+  title?: string;
+  i_page?: number;
+  file_path?: string;
+  file_name?: string;
+  text?: string;
+  content?: string;
+  link?: string;
 };
 
 type BubbleProps = {
@@ -51,29 +56,45 @@ export function Bubble({
               {msg.text + (msg.isStreaming ? "\n" : "")}
             </ReactMarkdown>
           </div>
-          {!msg.isStreaming && (
+          {!msg.isStreaming && cites && cites.length > 0 && (
             <>
               <hr />
               <div className="flex flex-col gap-2 text-sm mt-4">
                 {cites.map((cite, index) => {
-                  const key = `${cite.name}-${cite.i_page}-${index}`;
+                  const name = cite.name || cite.title || "출처";
+                  const text = cite.text || cite.content;
+                  const key = `${name}-${index}`;
+                  
                   return (
                     <div key={key}>
-                      <button
-                        onClick={() => {
-                          onCiteClick(cite.file_name, cite.i_page);
-                          handleTextVisible(key);
-                        }}
-                        className="text-left bg-gray-200"
-                      >
-                        {cite.name}
-                      </button>
-                      {visibleKey === key && !isLoading && (
+                      {cite.link ? (
+                        <a
+                          href={cite.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-left bg-gray-200 px-2 py-1 rounded inline-block hover:bg-gray-300"
+                        >
+                          {name} (Web)
+                        </a>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (cite.file_name && cite.i_page !== undefined) {
+                              onCiteClick(cite.file_name, cite.i_page);
+                            }
+                            handleTextVisible(key);
+                          }}
+                          className="text-left bg-gray-200 px-2 py-1 rounded hover:bg-gray-300"
+                        >
+                          {name} {cite.i_page ? `- ${cite.i_page}p` : ""}
+                        </button>
+                      )}
+                      {visibleKey === key && !isLoading && text && (
                         <div
                           className="mt-2 border p-2 rounded-md bg-gray-50 border-gray-50"
                           style={{ whiteSpace: "pre-wrap" }}
                         >
-                          {cite.text}
+                          {text}
                         </div>
                       )}
                     </div>

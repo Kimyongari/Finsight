@@ -42,7 +42,8 @@ export const useDynamicQuery = (): UseDynamicQueryReturn => {
     setData(null);
 
     try {
-      const response = await fetch(url, {
+      // 1. 의도 분석 단계
+      const analyzeResponse = await fetch("http://localhost:8000/rag/analyze_intention", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -50,13 +51,47 @@ export const useDynamicQuery = (): UseDynamicQueryReturn => {
         body: JSON.stringify({ query: query }),
       });
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.statusText}`);
+      if (!analyzeResponse.ok) {
+        throw new Error("Intention analysis failed");
       }
 
-      const result = await response.json();
-      setData(result);
-      console.log(result);
+      const analyzeResult = await analyzeResponse.json();
+
+      // 2. 의도에 따른 분기 처리
+      if (analyzeResult.next === "CHAT") {
+        // CHAT인 경우 가이드 엔드포인트 호출
+        const guideResponse = await fetch("http://localhost:8000/rag/guide", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query: query }),
+        });
+
+        if (!guideResponse.ok) {
+          throw new Error("Guide request failed");
+        }
+
+        const guideResult = await guideResponse.json();
+        setData(guideResult);
+      } else {
+        // RAG인 경우 원래의 엔드포인트 호출
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query: query }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`API request failed: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        setData(result);
+        console.log(result);
+      }
     } catch (err) {
       if (err instanceof Error) {
         setQeuryError(err);

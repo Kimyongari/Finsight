@@ -1,10 +1,11 @@
 import os
 from fastapi import APIRouter
 from ..services.rag_service import RagService
+from ..services.intention_analyzer import IntentionAnalyzer
 from ..services.vanilla_rag_workflow_service import vanilla_rag_workflow
 from ..services.advanced_rag_workflow_service import advanced_rag_workflow
 from ..schemas.request_models.request_models import RAGRequest, RegisterRequest,DeleteObjectsRequest
-from ..schemas.response_models.response_models import RAGResponse, RegisterResponse, ResetResponse, InitResponse, AdvancedRAGResponse, ShowResponse, DeleteObjectsResponse
+from ..schemas.response_models.response_models import RAGResponse, RegisterResponse, ResetResponse, InitResponse, AdvancedRAGResponse, ShowResponse, DeleteObjectsResponse, AnalysisResponse, GuideResponse
 from ..services.vdb_service import VDBService
 
 router = APIRouter()
@@ -86,3 +87,19 @@ async def delete_objects_from_file_name(request:DeleteObjectsRequest) -> DeleteO
         return DeleteObjectsResponse(success = True, msg = f"{file_name}에 해당하는 objects들을 전부 삭제하였습니다.")
     else:
         return DeleteObjectsResponse(success = False, msg = result['err_msg'])
+
+
+@router.post("/analyze_intention")
+async def analyze_intention(request: RAGRequest) -> AnalysisResponse:
+    question = request.query
+    analyzer = IntentionAnalyzer()
+    result = await analyzer.analyze(question)
+    return AnalysisResponse(success = True, next = result)
+
+@router.post("/guide")
+async def guide(request: RAGRequest) -> GuideResponse:
+    question = request.query
+    analyzer = IntentionAnalyzer()
+    response = await analyzer.guide(question)
+
+    return GuideResponse(success = True, answer = response)

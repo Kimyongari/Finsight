@@ -19,3 +19,4 @@ langgraph
 python-multipart
 aiofiles
 markdown
+langchain-openai

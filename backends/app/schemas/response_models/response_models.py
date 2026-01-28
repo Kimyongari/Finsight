@@ -50,3 +50,11 @@ class ShowResponse(BaseModel):
 class DeleteObjectsResponse(BaseModel):
     success: bool
     msg: str
+
+class AnalysisResponse(BaseModel):
+    success: bool
+    next : str
+
+class GuideResponse(BaseModel):
+    success: bool
+    answer: str

@@ -13,20 +13,10 @@ import { CollectionFile } from "../hooks/useCollectionFiles";
 import { useCollectionFiles } from "../hooks/useCollectionFiles";
 import { useDynamicQuery, QueryMode } from "../hooks/useDynamicQuery";
 
-// 출처
-type RetrievedDoc = {
-  name: string;
-  i_page: number;
-  file_path: string;
-};
-
 const initialMessages: Message[] = [];
 
 function Chatbot() {
   const navigate = useNavigate();
-  const exampleDocs: RetrievedDoc[] = [];
-  const [retrievedDocs, setRetrievedDocs] =
-    useState<RetrievedDoc[]>(exampleDocs);
 
   // --- 상태 및 훅 정의 ---
 
@@ -38,9 +28,9 @@ function Chatbot() {
   // 2. 메시지 및 채팅 관련 상태
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [inputValue, setInputValue] = useState("");
-  const [typingTextMap, setTypingTextMap] = useState<{ [id: number]: string }>(
-    {}
-  );
+  const [typingTextMap, setTypingTextMap] = useState<{
+    [id: number]: { answer: string; cites?: any[] };
+  }>({});
 
   // 3. 동적 API 호출 훅
   const [queryMode, setQueryMode] = useState<QueryMode>("rag");
@@ -74,10 +64,12 @@ function Chatbot() {
   // API 호출 성공 처리
   useEffect(() => {
     if (queryData && pendingMessageId) {
-      setRetrievedDocs(queryData.retrieved_documents || exampleDocs);
       setTypingTextMap((prev) => ({
         ...prev,
-        [pendingMessageId]: queryData.answer,
+        [pendingMessageId]: {
+          answer: queryData.answer,
+          cites: queryData.retrieved_documents || queryData.search_results,
+        },
       }));
       setPendingMessageId(null);
     }
@@ -103,8 +95,10 @@ function Chatbot() {
 
   // 타자 치기 효과 적용
   useEffect(() => {
-    Object.entries(typingTextMap).forEach(([idStr, fullText]) => {
+    Object.entries(typingTextMap).forEach(([idStr, data]) => {
       const id = Number(idStr);
+      const fullText = data.answer;
+      const cites = data.cites;
       let currentText = "";
       let charIndex = 0;
       const intervalId = setInterval(() => {
@@ -121,7 +115,7 @@ function Chatbot() {
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === id
-                ? { ...msg, isStreaming: false, type: "answer" }
+                ? { ...msg, isStreaming: false, type: "answer", cites: cites }
                 : msg
             )
           );
@@ -319,7 +313,7 @@ function Chatbot() {
                   onCiteClick={handleCiteClick}
                   key={msg.id}
                   isQuestion={msg.type === "question"}
-                  cites={retrievedDocs}
+                  cites={msg.cites || []}
                   msg={msg}
                 />
               ))}
