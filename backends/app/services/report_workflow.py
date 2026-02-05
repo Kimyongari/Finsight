@@ -899,7 +899,7 @@ class report_workflow:
         return chart_html
 
         # except Exception as e:
-            return "<p>주가 비교 차트를 생성하는 데 실패했습니다.</p>"
+        #     return "<p>주가 비교 차트를 생성하는 데 실패했습니다.</p>"
 
     async def _generate_financial_chart(self, corp_code: str, company_name: str, financial_features: dict) -> str:
         """재무 피처를 사용하여 chart_generator를 호출하여 차트 HTML 파일을 생성합니다."""
