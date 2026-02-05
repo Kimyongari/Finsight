@@ -33,3 +33,7 @@ services:
       - /app/node_modules
     depends_on:
       - backend
+    environment:
+      # 1. backend 대신 GCP 공인 IP를 사용해야 합니다.
+      # 2. Vite에서 인식하려면 변수명이 반드시 VITE_ 로 시작해야 합니다.
+      - VITE_API_URL=http://34.22.88.153:8000

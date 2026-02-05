@@ -1,27 +1,29 @@
 import { useState, useCallback } from "react";
 
+// ✅ 수정 포인트 1: 백엔드 기본 주소 설정
+// 개발 환경(Vite)에서는 환경변수(VITE_API_URL)를 우선 사용하고, 없으면 하드코딩된 IP 사용
+const BASE_URL = import.meta.env.VITE_API_URL || "http://34.22.88.153:8000";
+
 // 드롭다운에서 선택할 값들의 타입을 미리 정의하여 안정성을 높입니다.
 export type QueryMode = "rag" | "advanced_rag" | "web_search";
 
-// 각 모드에 해당하는 API 엔드포인트를 매핑합니다.
+// ✅ 수정 포인트 2: BASE_URL을 사용하여 엔드포인트 동적 구성
 const API_ENDPOINTS: Record<QueryMode, string> = {
-  rag: "http://localhost:8000/rag/query",
-  advanced_rag: "http://localhost:8000/rag/advanced_query",
-  web_search: "http://localhost:8000/web-agent/agent/web-search",
+  rag: `${BASE_URL}/rag/query`,
+  advanced_rag: `${BASE_URL}/rag/advanced_query`,
+  web_search: `${BASE_URL}/web-agent/agent/web-search`,
 };
 
 // 훅이 반환할 값들의 타입을 정의합니다.
 interface UseDynamicQueryReturn {
-  // executeQuery 함수는 query(질문)와 mode(API 종류)를 인자로 받습니다.
   executeQuery: (query: string, mode: QueryMode) => Promise<void>;
-  data: any; // API 응답 데이터 (타입을 더 구체적으로 지정할 수 있습니다)
+  data: any;
   isQueryLoading: boolean;
   queryError: Error | null;
 }
 
 /**
  * 선택된 쿼리 모드에 따라 다른 API로 요청을 보내는 커스텀 훅
- * @returns {UseDynamicQueryReturn} executeQuery 함수, 데이터, 로딩, 에러 상태
  */
 export const useDynamicQuery = (): UseDynamicQueryReturn => {
   const [data, setData] = useState<any>(null);
@@ -42,8 +44,9 @@ export const useDynamicQuery = (): UseDynamicQueryReturn => {
     setData(null);
 
     try {
+      // ✅ 수정 포인트 3: 하드코딩된 localhost 제거 -> BASE_URL 사용
       // 1. 의도 분석 단계
-      const analyzeResponse = await fetch("http://localhost:8000/rag/analyze_intention", {
+      const analyzeResponse = await fetch(`${BASE_URL}/rag/analyze_intention`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -59,8 +62,9 @@ export const useDynamicQuery = (): UseDynamicQueryReturn => {
 
       // 2. 의도에 따른 분기 처리
       if (analyzeResult.next === "CHAT") {
+        // ✅ 수정 포인트 4: BASE_URL 사용
         // CHAT인 경우 가이드 엔드포인트 호출
-        const guideResponse = await fetch("http://localhost:8000/rag/guide", {
+        const guideResponse = await fetch(`${BASE_URL}/rag/guide`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -75,7 +79,7 @@ export const useDynamicQuery = (): UseDynamicQueryReturn => {
         const guideResult = await guideResponse.json();
         setData(guideResult);
       } else {
-        // RAG인 경우 원래의 엔드포인트 호출
+        // RAG인 경우 원래의 엔드포인트 호출 (위에서 정의한 url 변수 사용)
         const response = await fetch(url, {
           method: "POST",
           headers: {
@@ -101,7 +105,7 @@ export const useDynamicQuery = (): UseDynamicQueryReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, []); // 의존성 배열이 비어있으므로 이 함수는 재생성되지 않습니다.
+  }, []);
 
   return { executeQuery, data, isQueryLoading, queryError };
 };
