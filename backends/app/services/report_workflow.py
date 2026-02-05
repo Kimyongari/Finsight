@@ -900,8 +900,9 @@ class report_workflow:
 
         except Exception as e:
             print('주가 비교 차트 생성 중 오류 발생:',e)
-            print('차트 데이터:', chart_data )
-            return "<p>주가 비교 차트를 생성하는 데 실패했습니다.</p>"
+            import traceback
+            traceback.print_exc()
+            return ""
 
     async def _generate_financial_chart(self, corp_code: str, company_name: str, financial_features: dict) -> str:
         """재무 피처를 사용하여 chart_generator를 호출하여 차트 HTML 파일을 생성합니다."""
