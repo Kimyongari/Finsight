@@ -15,7 +15,7 @@ import re
 import json
 import markdown
 from dotenv import load_dotenv
-
+load_dotenv()
 
 class report_workflow:
     """LangGraph 기반 기업 분석 보고서 생성 워크플로우.
@@ -858,47 +858,47 @@ class report_workflow:
 
     async def _generate_stock_chart(self, corp_code: str, stock_code: str, stock_name: str) -> str:
         """주가 데이터를 준비하고 chart_generator를 호출하여 차트 HTML 파일을 생성합니다."""
-        try:
-            # 데이터 준비 과정
-            today = datetime.now()
-            start_date = (today - timedelta(days=365)).strftime("%Y%m%d")
-            end_date = today.strftime("%Y%m%d")
+        # try:
+        # 데이터 준비 과정
+        today = datetime.now()
+        start_date = (today - timedelta(days=365)).strftime("%Y%m%d")
+        end_date = today.strftime("%Y%m%d")
 
-            df_stock = stock.get_market_ohlcv(start_date, end_date, stock_code)[["종가"]].rename(columns={"종가": stock_name})
-            df_kospi = stock.get_index_ohlcv(start_date, end_date, "1001")[["종가"]].rename(columns={"종가": "KOSPI"})
-            df_kosdaq = stock.get_index_ohlcv(start_date, end_date, "2001")[["종가"]].rename(columns={"종가": "KOSDAQ"})
+        df_stock = stock.get_market_ohlcv(start_date, end_date, stock_code)[["종가"]].rename(columns={"종가": stock_name})
+        df_kospi = stock.get_index_ohlcv(start_date, end_date, "1001")[["종가"]].rename(columns={"종가": "KOSPI"})
+        df_kosdaq = stock.get_index_ohlcv(start_date, end_date, "2001")[["종가"]].rename(columns={"종가": "KOSDAQ"})
 
-            df_merged = df_stock.join(df_kospi, how="inner").join(df_kosdaq, how="inner")
-            df_normalized = (df_merged / df_merged.iloc[0]) * 100
+        df_merged = df_stock.join(df_kospi, how="inner").join(df_kosdaq, how="inner")
+        df_normalized = (df_merged / df_merged.iloc[0]) * 100
 
-            # chart_generator에 전달할 데이터 가공
-            chart_data = {
-                "title": f"{stock_name} 주가와 주요 지수 비교 (최근 1년)",
-                "x_values": df_normalized.index.strftime("%Y-%m-%d").tolist(),
-                "traces": [
-                    {
-                        "name": stock_name,
-                        "y_values": df_normalized[stock_name].tolist(),
-                        "custom_data": df_merged[stock_name].tolist(),
-                    },
-                    {
-                        "name": "KOSPI",
-                        "y_values": df_normalized["KOSPI"].tolist(),
-                        "custom_data": df_merged["KOSPI"].tolist(),
-                    },
-                    {
-                        "name": "KOSDAQ",
-                        "y_values": df_normalized["KOSDAQ"].tolist(),
-                        "custom_data": df_merged["KOSDAQ"].tolist(),
-                    },
-                ],
-            }
+        # chart_generator에 전달할 데이터 가공
+        chart_data = {
+            "title": f"{stock_name} 주가와 주요 지수 비교 (최근 1년)",
+            "x_values": df_normalized.index.strftime("%Y-%m-%d").tolist(),
+            "traces": [
+                {
+                    "name": stock_name,
+                    "y_values": df_normalized[stock_name].tolist(),
+                    "custom_data": df_merged[stock_name].tolist(),
+                },
+                {
+                    "name": "KOSPI",
+                    "y_values": df_normalized["KOSPI"].tolist(),
+                    "custom_data": df_merged["KOSPI"].tolist(),
+                },
+                {
+                    "name": "KOSDAQ",
+                    "y_values": df_normalized["KOSDAQ"].tolist(),
+                    "custom_data": df_merged["KOSDAQ"].tolist(),
+                },
+            ],
+        }
 
-            # 차트 생성하여 HTML 문자열 반환
-            chart_html = await generate_chart_html(chart_data)
-            return chart_html
+        # 차트 생성하여 HTML 문자열 반환
+        chart_html = await generate_chart_html(chart_data)
+        return chart_html
 
-        except Exception as e:
+        # except Exception as e:
             return "<p>주가 비교 차트를 생성하는 데 실패했습니다.</p>"
 
     async def _generate_financial_chart(self, corp_code: str, company_name: str, financial_features: dict) -> str:
