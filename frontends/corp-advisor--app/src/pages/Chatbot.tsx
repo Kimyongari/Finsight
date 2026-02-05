@@ -12,6 +12,7 @@ import { Message } from "../ChatContext";
 import { CollectionFile } from "../hooks/useCollectionFiles";
 import { useCollectionFiles } from "../hooks/useCollectionFiles";
 import { useDynamicQuery, QueryMode } from "../hooks/useDynamicQuery";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://34.22.88.153:8000";
 
 const initialMessages: Message[] = [];
 
@@ -249,7 +250,7 @@ function Chatbot() {
     }
 
     try {
-      const response = await fetch("http://localhost:8000/files/download-pdf", {
+      const response = await fetch(`${BASE_URL}/files/download-pdf`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ file_name: fileName }),
