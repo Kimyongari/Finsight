@@ -6,6 +6,7 @@ import { Table } from "../components/Table.tsx";
 import { Button } from "../components/Button.tsx";
 import { SendHorizonal, ChevronLeft } from "lucide-react";
 import { LoadingSpinner } from "../components/LoadingSpinner.tsx";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://34.22.88.153:8000";
 
 const HtmlWithScriptsRenderer = ({ htmlString }: { htmlString: string }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -143,7 +144,7 @@ function Report() {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/report/${codeToUse}`,
+        `${BASE_URL}/report/${codeToUse}`,
         {
           method: "GET",
         }

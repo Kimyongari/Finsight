@@ -1,6 +1,7 @@
 // components/steps/Step2_Trigger.tsx
 import { useState } from "react";
 import { Button } from "../Button";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://34.22.88.153:8000";
 
 type Props = {
   files: File[]; // 표시할 파일 이름
@@ -16,7 +17,7 @@ export function TriggerModal({ files, onTriggerSuccess }: Props) {
     const fileNames = files.map((file) => file.name).join(", ");
     console.log("업로드할 파일들:", fileNames);
     try {
-      const response = await fetch("http://127.0.0.1:8000/rag/register", {
+      const response = await fetch(`${BASE_URL}/rag/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ file_name: files.map((f) => f.name) }),

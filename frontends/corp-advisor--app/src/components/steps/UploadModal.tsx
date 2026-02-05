@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { FileUploader } from "../FileUploader";
 import { Button } from "../Button";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://34.22.88.153:8000";
+
 // UploadModal 컴포넌트가 받을 props 타입 정의
 type UploadModalProps = {
   onUploadSuccess: (files: File[]) => void;
@@ -27,7 +29,7 @@ export function UploadModal({ onUploadSuccess }: UploadModalProps) {
     console.log("업로드할 파일들:", fileNames);
     // API 호출이 성공했다고 가정하고, 1.5초 후 다음 단계로 이동
     try {
-      const response = await fetch("http://127.0.0.1:8000/files/upload-pdf", {
+      const response = await fetch(`${BASE_URL}/files/upload-pdf`, {
         method: "POST",
         body: formData,
       });
