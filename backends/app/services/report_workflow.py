@@ -325,8 +325,6 @@ class report_workflow:
 {{FINANCIAL_STATEMENT_PLACEHOLDER}}
 
 ## III. 핵심 투자지표 분석
-### 주가 성과 비교
-{{STOCK_CHART_PLACEHOLDER}}
 
 ### 손익계산서 동기간 비교
 {{FINANCIAL_CHART_PLACEHOLDER}}
@@ -900,8 +898,8 @@ class report_workflow:
 
         except Exception as e:
             print('주가 비교 차트 생성 중 오류 발생:',e)
-            import traceback
-            traceback.print_exc()
+            # import traceback
+            # traceback.print_exc()
             return ""
 
     async def _generate_financial_chart(self, corp_code: str, company_name: str, financial_features: dict) -> str:
