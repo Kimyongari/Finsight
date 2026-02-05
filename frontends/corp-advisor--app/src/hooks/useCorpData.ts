@@ -11,6 +11,8 @@ interface ApiResponse {
   data: FinancialRecord[];
 }
 
+const BASE_URL = import.meta.env.VITE_API_URL || "http://34.22.88.153:8000";
+
 export const useCorpData = (query: string) => {
   const [data, setData] = useState<FinancialRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -25,7 +27,7 @@ export const useCorpData = (query: string) => {
 
       try {
         const response = await fetch(
-          "http://localhost:8000/financial/corp_list",
+          `${BASE_URL}/financial/corp_list`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },

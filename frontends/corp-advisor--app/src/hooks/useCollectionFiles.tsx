@@ -7,6 +7,8 @@ export interface CollectionFile {
   [key: string]: any;
 }
 
+const BASE_URL = import.meta.env.VITE_API_URL || "http://34.22.88.153:8000";
+
 export const useCollectionFiles = () => {
   // 파일 목록 상태
   const [files, setFiles] = useState<CollectionFile[]>([]);
@@ -21,7 +23,7 @@ export const useCollectionFiles = () => {
     setError(null); // 이전 에러 초기화
     try {
       const response = await fetch(
-        "http://localhost:8000/rag/show_files_in_collection"
+        `${BASE_URL}/rag/show_files_in_collection`
       );
 
       // HTTP 상태 코드가 2xx가 아닐 경우 에러 처리

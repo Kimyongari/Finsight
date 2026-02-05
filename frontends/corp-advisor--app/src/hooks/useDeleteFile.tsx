@@ -7,6 +7,7 @@ interface UseDeleteFileReturn {
   isSuccess: boolean;
   error: Error | null;
 }
+const BASE_URL = import.meta.env.VITE_API_URL || "http://34.22.88.153:8000";
 
 /**
  * 파일 이름으로 서버에 파일 삭제 요청을 보내는 커스텀 훅
@@ -25,7 +26,7 @@ export const useDeleteFile = (): UseDeleteFileReturn => {
 
     try {
       const response = await fetch(
-        "http://localhost:8000/rag/delete_objects_from_file_name",
+        `${BASE_URL}/rag/delete_objects_from_file_name`,
         {
           method: "POST",
           headers: {
