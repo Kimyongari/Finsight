@@ -1,7 +1,7 @@
 // components/steps/Step2_Trigger.tsx
 import { useState } from "react";
 import { Button } from "../Button";
-const BASE_URL = import.meta.env.VITE_API_URL || "http://34.22.88.153:8000";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 type Props = {
   files: File[]; // 표시할 파일 이름
@@ -34,12 +34,18 @@ export function TriggerModal({ files, onTriggerSuccess }: Props) {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4">2. 벡터 DB 저장</h2>
-      <p className="mb-4">{files.length}개 파일에 대한 저장을 시작할까요?</p>
+      <h2 className="mb-1.5 text-[17px] font-bold text-ink-900">
+        벡터 DB에 저장
+      </h2>
+      <p className="mb-4 text-[13.5px] leading-relaxed text-ink-500">
+        {files.length}개 문서를 조문 단위로 청크로 나눈 뒤 bge-m3 임베딩을 생성해
+        저장합니다. 문서 길이에 따라 수십 초가 걸릴 수 있습니다.
+      </p>
       <Button
-        ButtonText={isProcessing ? "업로드 중..." : "업로드 하기"}
+        ButtonText={isProcessing ? "적재 중…" : "적재 시작"}
         onClick={handleTrigger}
-      ></Button>
+        disabled={isProcessing}
+      />
     </div>
   );
 }

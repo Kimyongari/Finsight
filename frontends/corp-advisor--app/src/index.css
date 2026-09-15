@@ -1,74 +1,202 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* 글로벌 CSS (예: index.css, globals.css) */
-::-webkit-scrollbar {
-  width: 12px; /* 스크롤바 두께 */
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1; /* 트랙 색상 */
-  border-radius: 8px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #bbbaba; /* 스크롤바 색상 */
-  border-radius: 8px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #949494; /* hover 시 색상 */
-  width: 12px; /* 스크롤바 두께 */
-}
-
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+  word-break: keep-all; /* 한국어 단어 중간 줄바꿈 방지 */
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  color: #213547;
-  background-color: #ffffff;
+  color: theme("colors.ink.800");
+  background-color: theme("colors.ink.50");
+  font-family: theme("fontFamily.sans");
+  line-height: 1.65;
+  letter-spacing: -0.005em;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* ---------- 스크롤바 ---------- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: theme("colors.ink.200");
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: theme("colors.ink.300");
+  background-clip: padding-box;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+/* ---------- 마크다운 본문 (RAG 답변) ---------- */
+@layer components {
+  .md-body {
+    @apply text-[15px] leading-[1.75] text-ink-800;
+  }
+  .md-body > *:first-child {
+    @apply mt-0;
+  }
+  .md-body > *:last-child {
+    @apply mb-0;
+  }
+  .md-body p {
+    @apply my-2;
+  }
+  .md-body h1 {
+    @apply mt-6 mb-3 text-xl font-bold tracking-tight text-ink-900;
+  }
+  .md-body h2 {
+    @apply mt-6 mb-2.5 text-lg font-bold tracking-tight text-ink-900;
+  }
+  .md-body h3 {
+    @apply mt-5 mb-2 text-[15px] font-bold text-ink-900;
+  }
+  .md-body h4 {
+    @apply mt-4 mb-1.5 text-[15px] font-semibold text-ink-700;
+  }
+  .md-body strong {
+    @apply font-semibold text-ink-900;
+  }
+  .md-body ul {
+    @apply my-2 list-disc space-y-1 pl-5;
+  }
+  .md-body ol {
+    @apply my-2 list-decimal space-y-1 pl-5;
+  }
+  .md-body li::marker {
+    @apply text-ink-400;
+  }
+  .md-body a {
+    @apply font-medium text-brand-600 underline decoration-brand-200 decoration-2 underline-offset-2 hover:decoration-brand-500;
+  }
+  .md-body blockquote {
+    @apply my-3 border-l-[3px] border-brand-200 bg-brand-50/50 py-1 pl-4 pr-3 text-ink-600;
+  }
+  .md-body code {
+    @apply rounded bg-ink-100 px-1.5 py-0.5 font-mono text-[0.85em] text-ink-800;
+  }
+  .md-body pre {
+    @apply my-3 overflow-x-auto rounded-xl bg-ink-900 p-4 text-[13px] leading-relaxed text-ink-100;
+  }
+  .md-body pre code {
+    @apply bg-transparent p-0 text-inherit;
+  }
+  .md-body hr {
+    @apply my-5 border-ink-200;
+  }
+
+  /* 표: 답변 가독성의 핵심이라 별도 스타일을 준다 */
+  .md-body table {
+    @apply my-4 w-full border-collapse overflow-hidden rounded-lg text-[14px];
+    display: table;
+  }
+  .md-body thead th {
+    @apply border-b border-ink-200 bg-ink-100/80 px-3 py-2.5 text-left align-top font-semibold text-ink-700;
+    white-space: nowrap;
+  }
+  .md-body tbody td {
+    @apply border-b border-ink-100 px-3 py-2.5 align-top text-ink-700;
+  }
+  .md-body tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .md-body tbody tr:hover td {
+    @apply bg-ink-50;
+  }
+
+  /* 표가 넓을 때 가로 스크롤 */
+  .md-scroll {
+    @apply -mx-1 overflow-x-auto px-1;
+  }
+
+  /* ---------- 보고서(백엔드 HTML) ---------- */
+  .report-body {
+    @apply text-[15px] leading-[1.75] text-ink-800;
+  }
+  .report-body h1 {
+    @apply mb-6 mt-0 border-b border-ink-200 pb-4 text-[26px] font-extrabold tracking-tight text-ink-900;
+  }
+  .report-body h2 {
+    @apply mb-3 mt-10 flex items-center gap-2 text-[19px] font-bold tracking-tight text-ink-900;
+  }
+  .report-body h2::before {
+    content: "";
+    @apply inline-block h-4 w-1 rounded-full bg-brand-500;
+  }
+  .report-body h3 {
+    @apply mb-2 mt-6 text-[16px] font-bold text-ink-800;
+  }
+  .report-body h4 {
+    @apply mb-1.5 mt-4 text-[15px] font-semibold text-ink-700;
+  }
+  .report-body p {
+    @apply my-2.5;
+  }
+  .report-body ul {
+    @apply my-3 list-disc space-y-1.5 pl-5;
+  }
+  .report-body ol {
+    @apply my-3 list-decimal space-y-1.5 pl-5;
+  }
+  .report-body li::marker {
+    @apply text-ink-400;
+  }
+  .report-body strong {
+    @apply font-semibold text-ink-900;
+  }
+  .report-body a {
+    @apply font-medium text-brand-600 underline decoration-brand-200 decoration-2 underline-offset-2 hover:decoration-brand-500;
+  }
+  .report-body hr {
+    @apply my-8 border-ink-200;
+  }
+  .report-body table {
+    @apply my-4 w-full border-collapse text-[13.5px];
+  }
+  .report-body th {
+    @apply border-b border-ink-200 bg-ink-100/80 px-3 py-2 text-left font-semibold text-ink-700;
+  }
+  .report-body td {
+    @apply border-b border-ink-100 px-3 py-2 text-ink-700;
+  }
+  .report-body tbody tr:hover td {
+    @apply bg-ink-50;
+  }
+  /* DART 원문 HTML에 섞여 오는 빈 문단(<p><br></p>)이 큰 여백을 만들지 않게 한다 */
+  .report-body p:empty,
+  .report-body p:has(> br:only-child) {
+    display: none;
+  }
+
+  /* 재무제표 등 넓은 표는 감싸서 가로 스크롤 */
+  .report-body .table-wrap {
+    @apply my-4 overflow-x-auto rounded-xl border border-ink-200 bg-white;
+  }
+  .report-body .table-wrap > table {
+    @apply my-0;
+  }
+  /* plotly 차트 컨테이너.
+     plotly는 style="height:100%"로 렌더될 수 있어 최소 높이를 보장한다. */
+  .report-body .js-plotly-plot,
+  .report-body .plotly-graph-div {
+    @apply my-4 overflow-hidden rounded-xl border border-ink-200 bg-white;
+    min-height: 420px;
+  }
+  .report-body .js-plotly-plot .plotly-graph-div {
+    @apply my-0 rounded-none border-0;
+  }
 }

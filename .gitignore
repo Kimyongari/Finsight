@@ -6,3 +6,13 @@ __pycache__/
 docs_cache/
 .gitignore
 node_modules/
+
+# 런타임/개발 산출물
+.venv/
+.venv-local/
+weaviate_data/
+dist/
+*.tsbuildinfo
+.idea/
+frontends/*/.env
+.claude/

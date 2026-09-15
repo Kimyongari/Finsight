@@ -61,7 +61,7 @@ class vanilla_rag_workflow:
         4. **투명성 (Transparency & Citation)**
            - **모든 핵심 문장과 데이터의 끝에는 반드시 출처를 명시합니다.**
            - 표 형태의 데이터는 표 하단에 출처를 작성합니다.
-           - 출처 표기 형식: 문장 끝에 들여쓰기(4칸) 후 `※ 출처: 「문서명」 - n페이지 (또는 조항)`
+           - 출처 표기 형식: 관련 문장 **바로 다음 줄**에 `> ※ 출처: 「문서명」 - n페이지 (또는 조항)` 형태의 인용문(blockquote)으로 표기합니다. 공백 4칸 들여쓰기는 코드 블록으로 렌더링되므로 절대 사용하지 마십시오.
 
         # 주의 사항 (Strict Rules)
         - **문서 기반 검증:** 제공된 텍스트에 없는 내용은 절대 추론하거나 생성하지 마십시오.
@@ -100,8 +100,8 @@ class vanilla_rag_workflow:
         return {'answer' : answer}
     def setup(self):
         workflow = StateGraph(vanilla_rag_state)
-        workflow.add_node(self.retriever, "retriever")
-        workflow.add_node(self.generation, "generation")
+        workflow.add_node("retriever", self.retriever)
+        workflow.add_node("generation", self.generation)
         workflow.add_edge(START, "retriever")
         workflow.add_edge("retriever", "generation")
         workflow.add_edge("generation", END)

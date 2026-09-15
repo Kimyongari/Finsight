@@ -2,6 +2,9 @@ import plotly.graph_objects as go
 import plotly.io as pio
 from bs4 import BeautifulSoup
 
+# 보고서에 삽입되는 차트의 고정 높이(px)
+CHART_HEIGHT = 440
+
 
 async def generate_chart_html(chart_data: dict) -> str:
     """
@@ -122,7 +125,49 @@ async def generate_chart_html(chart_data: dict) -> str:
             })
 
     fig.update_layout(**layout_updates)
-    html_content = pio.to_html(fig, include_plotlyjs="cdn", config={'displayModeBar': False})
+
+    # plotly 기본값은 height:100%이므로 높이가 없는 컨테이너에 넣으면 차트가 0px로 접힌다.
+    # 픽셀 높이를 명시해 보고서 어디에 삽입해도 동일하게 보이도록 한다.
+    fig.update_layout(
+        template="plotly_white",
+        height=CHART_HEIGHT,
+        autosize=True,
+        margin=dict(l=60, r=30, t=70, b=60),
+        font=dict(
+            family="Pretendard, -apple-system, 'Apple SD Gothic Neo', sans-serif",
+            size=12,
+            color="#3a4154",
+        ),
+        title=dict(font=dict(size=15, color="#151a26")),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=-0.28,
+            xanchor="left",
+            x=0,
+            font=dict(size=11),
+        ),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        hoverlabel=dict(
+            bgcolor="white",
+            bordercolor="#dfe3ea",
+            font=dict(
+                family="Pretendard, -apple-system, 'Apple SD Gothic Neo', sans-serif",
+                size=12,
+            ),
+        ),
+    )
+    fig.update_xaxes(gridcolor="#eef0f4", zerolinecolor="#dfe3ea")
+    fig.update_yaxes(gridcolor="#eef0f4", zerolinecolor="#dfe3ea")
+
+    html_content = pio.to_html(
+        fig,
+        include_plotlyjs="cdn",
+        config={'displayModeBar': False, 'responsive': True},
+        default_height=f"{CHART_HEIGHT}px",
+        default_width="100%",
+    )
     return extract_main_content(html_content)
 
 

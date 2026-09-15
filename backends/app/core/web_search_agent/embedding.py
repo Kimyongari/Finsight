@@ -1,81 +1,106 @@
+"""웹 검색 문서 필터링용 임베딩 유틸리티.
+
+OpenRouter의 bge-m3 모델로 임베딩을 생성하고 코사인 유사도를 계산합니다.
+"""
+
+import asyncio
 import os
+import random
+
 import httpx
 import numpy as np
-import asyncio
-import random
 from dotenv import load_dotenv
 
 load_dotenv()
 
-NAVER_CLOVA_API_KEY = os.getenv("NAVER_CLOVA_API_KEY")
-NAVER_CLOUD_API_HOST = os.getenv("NAVERCLOUD_HOST")
-NAVER_EMBEDDING_URI = "/v1/api-tools/embedding/v2"
+EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "baai/bge-m3")
+OPENROUTER_KEY = os.getenv("OPENROUTER_KEY")
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/")
+EMBEDDING_URL = f"{OPENROUTER_BASE_URL}/embeddings"
 
-async def get_naver_embedding(text: str, max_retries: int = 5) -> list[float]:
-    """Naver Cloud Embedding API를 호출하여 텍스트의 임베딩 벡터를 반환합니다.
+# bge-m3의 입력 한도(8192 토큰)에 여유를 둔 문자 수 상한
+MAX_CHARS = 8000
 
-    Rate limiting 대응을 위한 exponential backoff 재시도 로직 포함.
-    """
-    if not NAVER_CLOVA_API_KEY:
-        raise ValueError("NAVER_CLOVA_API_KEY가 .env 파일에 설정되지 않았습니다.")
+
+async def _post_embeddings(payload: dict, max_retries: int = 4) -> dict | None:
+    """429/5xx에 대해 지수 백오프로 재시도하며 임베딩 API를 호출한다."""
+    if not OPENROUTER_KEY:
+        raise ValueError("OPENROUTER_KEY가 .env 파일에 설정되지 않았습니다.")
 
     headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "Authorization": NAVER_CLOVA_API_KEY,
+        "Authorization": f"Bearer {OPENROUTER_KEY}",
+        "Content-Type": "application/json",
     }
-    payload = {"text": text}
 
     for attempt in range(max_retries + 1):
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(
-                    f"https://{NAVER_CLOUD_API_HOST}{NAVER_EMBEDDING_URI}",
-                    json=payload,
-                    headers=headers,
-                    timeout=30.0,
-                )
-                response.raise_for_status()
-                data = response.json()
-                return data.get("result", {}).get("embedding", [])
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(EMBEDDING_URL, json=payload, headers=headers)
 
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429:  # Too Many Requests
-                    if attempt < max_retries:
-                        # Retry-After 헤더 확인
-                        retry_after = e.response.headers.get("Retry-After")
-                        if retry_after:
-                            wait_time = int(retry_after)
-                        else:
-                            # Exponential backoff with jitter
-                            base_delay = 2 ** attempt  # 1, 2, 4, 8, 16초
-                            jitter = random.uniform(0.1, 0.5) * base_delay  # 10-50% 지터
-                            wait_time = min(base_delay + jitter, 64)  # 최대 64초
+            if response.status_code == 200:
+                return response.json()
 
-                        print(f"[재시도] Rate limit 감지, {wait_time:.1f}초 후 재시도 (시도 {attempt + 1}/{max_retries + 1})")
-                        await asyncio.sleep(wait_time)
-                        continue
-                    else:
-                        print(f"[오류] 최대 재시도 횟수 초과 (429 오류): {e}")
-                        return []
-                else:
-                    print(f"[오류] HTTP 오류 {e.response.status_code}: {e}")
-                    return []
-
-            except httpx.RequestError as e:
+            if response.status_code in (408, 429) or response.status_code >= 500:
                 if attempt < max_retries:
-                    wait_time = (2 ** attempt) + random.uniform(0.1, 1.0)
-                    print(f"[재시도] 네트워크 오류, {wait_time:.1f}초 후 재시도: {e}")
-                    await asyncio.sleep(wait_time)
+                    wait = min(2 ** attempt + random.uniform(0.1, 0.5), 30)
+                    print(f"[재시도] 임베딩 {response.status_code} 응답, {wait:.1f}초 후 재시도 "
+                          f"(시도 {attempt + 1}/{max_retries + 1})")
+                    await asyncio.sleep(wait)
                     continue
-                else:
-                    print(f"[오류] 네트워크 오류 (최대 재시도 초과): {e}")
-                    return []
 
-            except (KeyError, IndexError) as e:
-                print(f"[오류] Naver Embedding API 응답 형식 오류: {e}")
-                return []
+            print(f"[오류] 임베딩 HTTP {response.status_code}: {response.text[:200]}")
+            return None
 
-    return []
+        except httpx.RequestError as e:
+            if attempt < max_retries:
+                wait = min(2 ** attempt + random.uniform(0.1, 1.0), 30)
+                print(f"[재시도] 네트워크 오류, {wait:.1f}초 후 재시도: {e}")
+                await asyncio.sleep(wait)
+                continue
+            print(f"[오류] 네트워크 오류 (최대 재시도 초과): {e}")
+            return None
+
+    return None
+
+
+async def get_embedding(text: str) -> list[float]:
+    """텍스트 하나의 임베딩 벡터를 반환한다. 실패 시 빈 리스트."""
+    data = await _post_embeddings({
+        "model": EMBEDDING_MODEL_NAME,
+        "input": (text or "")[:MAX_CHARS],
+    })
+    if not data:
+        return []
+    try:
+        return data["data"][0]["embedding"]
+    except (KeyError, IndexError) as e:
+        print(f"[오류] 임베딩 응답 형식 오류: {e}")
+        return []
+
+
+async def get_embeddings(texts: list[str]) -> list[list[float]]:
+    """여러 텍스트를 한 번의 요청으로 임베딩한다.
+
+    Returns:
+        입력 순서와 같은 벡터 리스트. 실패한 항목은 빈 리스트.
+    """
+    if not texts:
+        return []
+
+    data = await _post_embeddings({
+        "model": EMBEDDING_MODEL_NAME,
+        "input": [(t or "")[:MAX_CHARS] for t in texts],
+    })
+    if not data:
+        return [[] for _ in texts]
+
+    vectors: list[list[float]] = [[] for _ in texts]
+    for item in data.get("data", []):
+        idx = item.get("index", 0)
+        if 0 <= idx < len(vectors):
+            vectors[idx] = item.get("embedding", [])
+    return vectors
+
 
 def cosine_similarity(v1: list[float], v2: list[float]) -> float:
     """두 벡터 간의 코사인 유사도를 계산합니다."""
@@ -83,4 +108,7 @@ def cosine_similarity(v1: list[float], v2: list[float]) -> float:
         return 0.0
     v1_arr = np.array(v1)
     v2_arr = np.array(v2)
-    return np.dot(v1_arr, v2_arr) / (np.linalg.norm(v1_arr) * np.linalg.norm(v2_arr))
+    denom = np.linalg.norm(v1_arr) * np.linalg.norm(v2_arr)
+    if denom == 0:
+        return 0.0
+    return float(np.dot(v1_arr, v2_arr) / denom)

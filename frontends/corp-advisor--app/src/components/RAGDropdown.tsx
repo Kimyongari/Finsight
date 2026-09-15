@@ -1,70 +1,73 @@
-import React, { useState, useRef, useEffect } from "react";
-import { QueryMode } from "../hooks/useDynamicQuery"; // QueryMode 타입을 가져옵니다.
+import type { ReactNode } from "react";
+import { FileSearch, Layers, Globe } from "lucide-react";
+import type { QueryMode } from "../hooks/useDynamicQuery";
 
-// 옵션을 객체 배열로 변경 (label: 화면 표시용, value: 내부 로직용)
-const options: { label: string; value: QueryMode }[] = [
-  { label: "일반 분석", value: "rag" },
-  { label: "심층 분석", value: "advanced_rag" },
-  { label: "웹 서치", value: "web_search" },
+const options: {
+  label: string;
+  value: QueryMode;
+  icon: ReactNode;
+  hint: string;
+}[] = [
+  {
+    label: "일반 분석",
+    value: "rag",
+    icon: <FileSearch size={14} />,
+    hint: "법령 벡터 검색으로 근거 조항을 찾아 답변합니다.",
+  },
+  {
+    label: "심층 분석",
+    value: "advanced_rag",
+    icon: <Layers size={14} />,
+    hint: "검색된 조항이 인용한 참조 조문까지 함께 확장 검색합니다.",
+  },
+  {
+    label: "웹 서치",
+    value: "web_search",
+    icon: <Globe size={14} />,
+    hint: "웹에서 최신 자료를 수집해 요약·분석합니다.",
+  },
 ];
 
 type RAGDropdownProps = {
-  // onSelect가 QueryMode 타입을 받도록 수정
+  value: QueryMode;
   onSelect: (value: QueryMode) => void;
-  hasMessages: boolean;
+  disabled?: boolean;
 };
 
-export function RAGDropdown({ onSelect, hasMessages }: RAGDropdownProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  // 선택된 옵션 객체 전체를 저장하거나, label만 저장
-  const [selectedLabel, setSelectedLabel] = useState<string>("일반 분석");
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleSelect = (option: { label: string; value: QueryMode }) => {
-    setSelectedLabel(option.label); // 화면에는 label 표시
-    setIsOpen(false);
-    onSelect(option.value); // 부모에게는 value(영문 key) 전달
-  };
+/** 분석 모드 선택용 세그먼티드 컨트롤. */
+export function RAGDropdown({ value, onSelect, disabled }: RAGDropdownProps) {
+  const active = options.find((o) => o.value === value) ?? options[0];
 
   return (
-    <div ref={dropdownRef} className="relative">
-      <button
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="w-40 p-3 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none overflow-y-hidden border-none"
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <div
+        role="tablist"
+        aria-label="분석 모드"
+        className="inline-flex rounded-xl border border-ink-200 bg-ink-100/70 p-1"
       >
-        {selectedLabel}
-      </button>
-
-      {isOpen && (
-        <ul
-          className={`${
-            hasMessages ? "bottom-full mb-2" : "top-full mt-2"
-          } absolute bg-white border rounded mt-1 shadow-lg z-10 w-40 text-center`}
-        >
-          {options.map((option) => (
-            <li
+        {options.map((option) => {
+          const isActive = option.value === value;
+          return (
+            <button
               key={option.value}
-              className="p-2 hover:bg-indigo-100 cursor-pointer"
-              onClick={() => handleSelect(option)}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              disabled={disabled}
+              onClick={() => onSelect(option.value)}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${
+                isActive
+                  ? "bg-white text-brand-700 shadow-sm"
+                  : "text-ink-500 hover:text-ink-700"
+              }`}
             >
+              {option.icon}
               {option.label}
-            </li>
-          ))}
-        </ul>
-      )}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[12.5px] text-ink-400">{active.hint}</p>
     </div>
   );
 }

@@ -60,19 +60,22 @@ API는 각각 특정 도메인을 처리하는 여러 라우터로 나뉘며, �
 ## 4. 시작하기
 
 ### 사전 요구사항
-- Python 3.9+
+- Python 3.11
+- Node.js 20+
 - Docker 및 Docker Compose
-- `.env` 구성:
+- `backends/.env` 구성:
 ```
-OPENDART_API_KEY=
-NAVERCLOUD_HOST=
-NAVER_CLOVA_API_KEY=
-SEARCHAPI_KEY=
-OPENROUTER_KEY=
-OPENROUTER_BASE_URL=
-MODEL=
-WEAVIATE_URL=
+OPENDART_API_KEY=            # DART OpenAPI 키
+SEARCHAPI_KEY=               # searchapi.io 키 (웹 검색)
+OPENROUTER_KEY=              # OpenRouter 키 (LLM + 임베딩 공용)
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+MODEL=google/gemini-3.5-flash-lite   # 생성 모델
+EMBEDDING_MODEL_NAME=baai/bge-m3     # 임베딩 모델 (1024차원)
+WEAVIATE_URL=http://localhost:8090   # 로컬 실행 시. 컨테이너에서는 compose가 덮어씀
 ```
+
+> 임베딩은 OpenRouter의 `baai/bge-m3`(1024차원)를 사용합니다.
+> LLM과 임베딩이 같은 키/엔드포인트를 쓰므로 별도 임베딩 제공자 설정이 필요 없습니다.
 
 ### 설치 및 설정
 
@@ -82,7 +85,37 @@ WEAVIATE_URL=
     cd Finsight
     ```
 
-2.  **Docker Container Setting**
+2.  **전체 스택을 Docker로 실행**
     ```bash
-    docker dompose up -d --build
+    docker compose up -d --build
+    ```
+    - Weaviate: http://localhost:8090
+    - 백엔드: http://localhost:8000 (API 문서 http://localhost:8000/docs)
+    - 프론트엔드: http://localhost:5173
+
+3.  **로컬에서 개별 실행 (개발용)**
+    ```bash
+    # 벡터 DB만 컨테이너로
+    docker compose up -d weaviate
+
+    # 백엔드
+    cd backends
+    python3.11 -m venv .venv && source .venv/bin/activate
+    pip install -r requirements.txt
+    python -m uvicorn main:app --port 8000
+
+    # 프론트엔드 (별도 터미널)
+    cd frontends/corp-advisor--app
+    npm install
+    npm run dev     # VITE_API_URL 은 .env 로 주입 (기본 http://localhost:8000)
+    ```
+
+4.  **법령 문서 적재 (최초 1회)**
+    `backends/pdfs/` 의 PDF를 청크로 나눠 임베딩 후 Weaviate에 적재합니다.
+    ```bash
+    curl http://localhost:8000/rag/initialize
+    ```
+    적재 현황 확인:
+    ```bash
+    curl http://localhost:8000/rag/show_files_in_collection
     ```

@@ -8,9 +8,12 @@ from app.core.financial_searchengine.financial_statements_extractor import (
     financial_statements_extractor,
 )
 from app.core.web_search_agent.news_search import NewsSearchTool
+from app.core.financial_searchengine.ksic import describe_industry
 from app.core.chart_generator import generate_chart_html
 from app.schemas.langraph_states.state_models import report_workflow_state
 from pykrx import stock
+import pandas as pd
+import yfinance as yf
 import re
 import json
 import markdown
@@ -245,6 +248,13 @@ class report_workflow:
         2.  **SWOT 분석:** 분석한 모든 정보(기업 개요, 재무, 뉴스)를 바탕으로 회사의 강점(Strengths), 약점(Weaknesses), 기회(Opportunities), 위협(Threats)을 각각 2가지씩 도출합니다.
         3.  **종합 의견 및 투자 전략 도출:** 위의 재무 분석과 SWOT 분석 결과를 종합하여 최종 결론과 투자 전략을 작성합니다.
 
+        **작성 규칙:**
+        - 아래 형식의 대괄호 `[A/B/C]`는 **선택 가이드**입니다. 해당하는 표현 하나만 골라
+          **대괄호 없이** 자연스러운 문장으로 써 주세요. (예: `[양호/보통/주의 필요]` → `양호한`)
+        - 소괄호 `( )` 안의 지시문도 출력하지 말고, 그 자리에 실제 분석 내용을 채워 주세요.
+        - 완성된 보고서 문장만 출력하고, 채워지지 않은 자리표시자를 남기지 마세요.
+        - 금액은 조/억 원 단위로 반올림해 읽기 쉽게 표기하세요.
+
         **최종 출력 형식 (아래 형식을 엄격하게 준수하세요. 다른 설명이나 제목 없이 바로 시작):**
 
         ### 재무 건전성 분석
@@ -314,6 +324,13 @@ class report_workflow:
 
         recent_news_summary = "\n\n".join(news_summary_parts) if news_summary_parts else "최신 뉴스를 찾을 수 없습니다."
 
+        # 주가 차트는 상장사만 생성되므로 결과가 있을 때만 섹션을 넣는다
+        stock_chart_section = (
+            "\n### 주가 추이 (최근 1년, 지수 대비)\n{STOCK_CHART_PLACEHOLDER}\n"
+            if stock_chart_html and stock_chart_html.strip()
+            else ""
+        )
+
         # 마크다운 템플릿 생성 (플레이스홀더 포함)
         markdown_template = f"""
 # {company_name} 기업 분석 보고서
@@ -325,7 +342,7 @@ class report_workflow:
 {{FINANCIAL_STATEMENT_PLACEHOLDER}}
 
 ## III. 핵심 투자지표 분석
-
+{stock_chart_section}
 ### 손익계산서 동기간 비교
 {{FINANCIAL_CHART_PLACEHOLDER}}
 
@@ -342,11 +359,19 @@ class report_workflow:
         # 마크다운을 HTML로 변환
         html_content = markdown.markdown(markdown_template.strip())
 
-        # 플레이스홀더를 실제 HTML 데이터로 치환
-        html_content = html_content.replace("{FINANCIAL_STATEMENT_PLACEHOLDER}", financial_statement_html)
-        html_content = html_content.replace("{STOCK_CHART_PLACEHOLDER}", stock_chart_html)
-        html_content = html_content.replace("{FINANCIAL_CHART_PLACEHOLDER}", financial_chart_html)
-        html_content = html_content.replace("{PROFITABILITY_CHART_PLACEHOLDER}", profitability_chart_html)
+        # 플레이스홀더를 실제 HTML 데이터로 치환.
+        # markdown이 플레이스홀더를 <p>로 감싸므로 <p><div>...</div></p> 같은 잘못된 중첩이
+        # 생기지 않도록 감싼 <p> 태그를 함께 걷어낸다.
+        replacements = {
+            "FINANCIAL_STATEMENT_PLACEHOLDER": financial_statement_html,
+            "STOCK_CHART_PLACEHOLDER": stock_chart_html,
+            "FINANCIAL_CHART_PLACEHOLDER": financial_chart_html,
+            "PROFITABILITY_CHART_PLACEHOLDER": profitability_chart_html,
+        }
+        for key, value in replacements.items():
+            token = "{" + key + "}"
+            html_content = html_content.replace(f"<p>{token}</p>", value or "")
+            html_content = html_content.replace(token, value or "")
 
         return {"final_report": html_content}
 
@@ -444,7 +469,7 @@ class report_workflow:
 
         return f"""*   **대표자명:** {ceo_nm}
 *   **설립일:** {est_dt}
-*   **주요 사업:** {induty_code}
+*   **주요 사업:** {describe_industry(induty_code)}
 *   **본사 주소:** {adres}
 *   **홈페이지:** {hm_url}
 *   **시장 구분:** {corp_cls} (종목코드: {stock_code})"""
@@ -854,6 +879,48 @@ class report_workflow:
             print(f"수익성 비율 계산 실패: {e}")
             return {"profitability_ratios": []}
 
+    # KRX 지수 API는 응답 형식이 바뀌어 pykrx로 조회가 실패할 때가 있어
+    # 야후 파이낸스 심볼을 대체 경로로 둔다.
+    INDEX_SOURCES = {
+        "1001": {"name": "KOSPI", "yahoo": "^KS11"},
+        "2001": {"name": "KOSDAQ", "yahoo": "^KQ11"},
+    }
+
+    @staticmethod
+    def _fetch_index_close(index_code: str, start_date: str, end_date: str):
+        """지수의 종가 시리즈를 가져온다. 실패하면 None을 반환한다.
+
+        1순위 pykrx, 2순위 야후 파이낸스. 반환 인덱스는 tz 없는 날짜로 맞춘다.
+        """
+        meta = report_workflow.INDEX_SOURCES[index_code]
+
+        try:
+            df_index = stock.get_index_ohlcv(
+                start_date, end_date, index_code, name_display=False
+            )
+            if df_index is not None and not df_index.empty and "종가" in df_index:
+                series = df_index["종가"]
+                series.index = pd.to_datetime(series.index).tz_localize(None).normalize()
+                return series.rename(meta["name"])
+            raise ValueError("pykrx 지수 응답이 비어 있습니다.")
+        except Exception as krx_error:  # noqa: BLE001
+            print(f"{meta['name']} pykrx 조회 실패, 야후 파이낸스로 재시도: {krx_error}")
+
+        try:
+            history = yf.Ticker(meta["yahoo"]).history(
+                start=f"{start_date[:4]}-{start_date[4:6]}-{start_date[6:]}",
+                end=f"{end_date[:4]}-{end_date[4:6]}-{end_date[6:]}",
+                auto_adjust=False,
+            )
+            if history is None or history.empty:
+                raise ValueError("야후 파이낸스 응답이 비어 있습니다.")
+            series = history["Close"]
+            series.index = pd.to_datetime(series.index).tz_localize(None).normalize()
+            return series.rename(meta["name"])
+        except Exception as yahoo_error:  # noqa: BLE001
+            print(f"{meta['name']} 야후 파이낸스 조회도 실패: {yahoo_error}")
+            return None
+
     async def _generate_stock_chart(self, corp_code: str, stock_code: str, stock_name: str) -> str:
         """주가 데이터를 준비하고 chart_generator를 호출하여 차트 HTML 파일을 생성합니다."""
         try:
@@ -862,33 +929,43 @@ class report_workflow:
             start_date = (today - timedelta(days=365)).strftime("%Y%m%d")
             end_date = today.strftime("%Y%m%d")
 
-            df_stock = stock.get_market_ohlcv(start_date, end_date, stock_code)[["종가"]].rename(columns={"종가": stock_name})
-            df_kospi = stock.get_index_ohlcv(start_date, end_date, "1001")[["종가"]].rename(columns={"종가": "KOSPI"})
-            df_kosdaq = stock.get_index_ohlcv(start_date, end_date, "2001")[["종가"]].rename(columns={"종가": "KOSDAQ"})
+            df_merged = stock.get_market_ohlcv(start_date, end_date, stock_code)[
+                ["종가"]
+            ].rename(columns={"종가": stock_name})
+            if df_merged.empty:
+                print(f"주가 데이터가 비어 있어 차트를 건너뜁니다. (stock_code={stock_code})")
+                return ""
 
-            df_merged = df_stock.join(df_kospi, how="inner").join(df_kosdaq, how="inner")
+            df_merged.index = pd.to_datetime(df_merged.index).tz_localize(None).normalize()
+
+            # 지수(KOSPI/KOSDAQ)는 조회가 실패할 수 있으므로 개별적으로 시도하고,
+            # 실패하면 종목 주가만으로 차트를 그린다.
+            for index_code in self.INDEX_SOURCES:
+                index_series = self._fetch_index_close(index_code, start_date, end_date)
+                if index_series is None:
+                    continue
+                df_merged = df_merged.join(index_series, how="inner")
+
+            # 첫 거래일을 100으로 놓고 상대 수익률을 비교한다
             df_normalized = (df_merged / df_merged.iloc[0]) * 100
+
+            series_names = list(df_merged.columns)
+            if len(series_names) > 1:
+                title = f"{stock_name} 주가와 주요 지수 비교 (최근 1년, 첫 거래일=100)"
+            else:
+                title = f"{stock_name} 주가 추이 (최근 1년, 첫 거래일=100)"
 
             # chart_generator에 전달할 데이터 가공
             chart_data = {
-                "title": f"{stock_name} 주가와 주요 지수 비교 (최근 1년)",
+                "title": title,
                 "x_values": df_normalized.index.strftime("%Y-%m-%d").tolist(),
                 "traces": [
                     {
-                        "name": stock_name,
-                        "y_values": df_normalized[stock_name].tolist(),
-                        "custom_data": df_merged[stock_name].tolist(),
-                    },
-                    {
-                        "name": "KOSPI",
-                        "y_values": df_normalized["KOSPI"].tolist(),
-                        "custom_data": df_merged["KOSPI"].tolist(),
-                    },
-                    {
-                        "name": "KOSDAQ",
-                        "y_values": df_normalized["KOSDAQ"].tolist(),
-                        "custom_data": df_merged["KOSDAQ"].tolist(),
-                    },
+                        "name": name,
+                        "y_values": df_normalized[name].tolist(),
+                        "custom_data": df_merged[name].tolist(),
+                    }
+                    for name in series_names
                 ],
             }
 

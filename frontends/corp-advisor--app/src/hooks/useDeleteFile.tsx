@@ -7,7 +7,7 @@ interface UseDeleteFileReturn {
   isSuccess: boolean;
   error: Error | null;
 }
-const BASE_URL = import.meta.env.VITE_API_URL || "http://34.22.88.153:8000";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 /**
  * 파일 이름으로 서버에 파일 삭제 요청을 보내는 커스텀 훅

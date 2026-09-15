@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FileUploader } from "../FileUploader";
 import { Button } from "../Button";
-const BASE_URL = import.meta.env.VITE_API_URL || "http://34.22.88.153:8000";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 // UploadModal 컴포넌트가 받을 props 타입 정의
 type UploadModalProps = {
@@ -44,14 +44,21 @@ export function UploadModal({ onUploadSuccess }: UploadModalProps) {
   };
   return (
     <>
+      <h2 className="mb-1.5 text-[17px] font-bold text-ink-900">
+        분석할 PDF 업로드
+      </h2>
+      <p className="mb-4 text-[13.5px] leading-relaxed text-ink-500">
+        법령·규정 PDF를 올리면 다음 단계에서 벡터 DB에 적재합니다.
+      </p>
       <FileUploader
         uploadedFiles={uploadedFiles}
         setUploadedFiles={setUploadedFiles}
-      ></FileUploader>
+      />
       <Button
-        ButtonText={isUploading ? "업로드 중..." : "업로드 완료"}
+        ButtonText={isUploading ? "업로드 중…" : "업로드 완료"}
         onClick={handleUpload}
-      ></Button>
+        disabled={isUploading || uploadedFiles.length === 0}
+      />
     </>
   );
 }

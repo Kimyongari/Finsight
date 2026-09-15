@@ -1,4 +1,4 @@
-import React from "react";
+import { X } from "lucide-react";
 import { UploadModal } from "./UploadModal";
 import { TriggerModal } from "./TirggerModal";
 import { CompleteModal } from "./CompleteModal";
@@ -41,18 +41,19 @@ export function Modal({
     // 화면 전체를 덮는 반투명한 배경
     // 클릭하면 onClose 함수가 호출되어 모달이 닫힙니다.
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/40 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="bg-white p-8 rounded-lg shadow-xl relative w-full max-w-md"
+        className="relative w-full max-w-md rounded-2xl border border-ink-200 bg-white p-7 shadow-lift"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"
+          aria-label="닫기"
+          className="absolute right-3 top-3 rounded-lg p-1.5 text-ink-400 transition-colors hover:bg-ink-100 hover:text-ink-800"
         >
-          &times;
+          <X size={16} />
         </button>
         <StepIndicator currentStep={currentStep} />
         {renderStep()}

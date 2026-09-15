@@ -1,20 +1,29 @@
 // Chatbot.tsx
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Sparkles, RotateCcw } from "lucide-react";
 
 import { ChatForm } from "../components/ChatForm";
 import { Bubble } from "../components/Bubble";
 import { Modal } from "../components/steps/Modal";
 import { PdfViewer } from "../components/PdfViewer";
 import { LoadingSpinner } from "../components/LoadingSpinner";
-import { Message } from "../ChatContext";
-import { CollectionFile } from "../hooks/useCollectionFiles";
+import type { Message } from "../ChatContext";
+import type { CollectionFile } from "../hooks/useCollectionFiles";
 import { useCollectionFiles } from "../hooks/useCollectionFiles";
-import { useDynamicQuery, QueryMode } from "../hooks/useDynamicQuery";
-const BASE_URL = import.meta.env.VITE_API_URL || "http://34.22.88.153:8000";
+import { useDynamicQuery } from "../hooks/useDynamicQuery";
+import type { QueryMode } from "../hooks/useDynamicQuery";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const initialMessages: Message[] = [];
+
+// 빈 화면에서 제안하는 예시 질문
+const SAMPLE_QUESTIONS = [
+  "전자금융거래법 시행령상 전자금융업자의 자본금 요건은?",
+  "금융회사가 클라우드컴퓨팅서비스를 이용할 때 지켜야 할 절차는?",
+  "정보보호최고책임자 지정 대상과 주요 업무를 정리해줘",
+  "전자금융사고 배상책임 보험 가입 기준이 궁금해",
+];
 
 function Chatbot() {
   const navigate = useNavigate();
@@ -44,7 +53,6 @@ function Chatbot() {
   const [pendingMessageId, setPendingMessageId] = useState<number | null>(null);
 
   // 4. UI 및 기타 상태
-  const [deviceType, setDeviceType] = useState(getDeviceType());
   const chatEndRef = useRef<null | HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -84,7 +92,8 @@ function Chatbot() {
           msg.id === pendingMessageId
             ? {
                 ...msg,
-                text: "답변을 가져오는 데 실패했습니다.",
+                type: "answer",
+                text: "답변을 가져오는 데 실패했습니다. 백엔드 서버 상태를 확인해주세요.",
                 isStreaming: false,
               }
             : msg
@@ -94,23 +103,31 @@ function Chatbot() {
     }
   }, [queryError, pendingMessageId]);
 
-  // 타자 치기 효과 적용
+  // 타자 치기 효과 적용 (긴 답변은 한 번에 여러 글자씩 흘려 체감 속도를 유지)
   useEffect(() => {
-    Object.entries(typingTextMap).forEach(([idStr, data]) => {
+    const entries = Object.entries(typingTextMap);
+    if (entries.length === 0) return;
+
+    const intervals: ReturnType<typeof setInterval>[] = [];
+
+    entries.forEach(([idStr, data]) => {
       const id = Number(idStr);
-      const fullText = data.answer;
+      const fullText = data.answer ?? "";
       const cites = data.cites;
-      let currentText = "";
+      const step = Math.max(2, Math.ceil(fullText.length / 220));
       let charIndex = 0;
+
       const intervalId = setInterval(() => {
         if (charIndex < fullText.length) {
-          currentText += fullText.charAt(charIndex);
+          charIndex = Math.min(charIndex + step, fullText.length);
+          const currentText = fullText.slice(0, charIndex);
           setMessages((prev) =>
             prev.map((msg) =>
-              msg.id === id ? { ...msg, text: currentText } : msg
+              msg.id === id
+                ? { ...msg, type: "answer", text: currentText }
+                : msg
             )
           );
-          charIndex++;
         } else {
           clearInterval(intervalId);
           setMessages((prev) =>
@@ -125,18 +142,13 @@ function Chatbot() {
             return rest;
           });
         }
-      }, 10); // 1ms는 너무 빠르므로 10ms 정도로 조정
+      }, 16);
 
-      return () => clearInterval(intervalId);
+      intervals.push(intervalId);
     });
-  }, [typingTextMap]);
 
-  // 창 크기 변경 감지
-  useEffect(() => {
-    const handleResize = () => setDeviceType(getDeviceType());
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    return () => intervals.forEach(clearInterval);
+  }, [typingTextMap]);
 
   // 자동 스크롤
   useEffect(() => {
@@ -153,13 +165,14 @@ function Chatbot() {
 
   // --- 핸들러 함수들 ---
 
-  const handleSubmit = () => {
-    if (!inputValue.trim()) return;
+  const submitQuestion = (rawText: string) => {
+    const text = rawText.trim();
+    if (!text || isQueryLoading) return;
 
     const newQuestion: Message = {
       id: Date.now(),
       type: "question",
-      text: inputValue,
+      text,
     };
 
     const loadingAnswerId = Date.now() + 1;
@@ -167,7 +180,13 @@ function Chatbot() {
       id: loadingAnswerId,
       type: "loading",
       text: (
-        <LoadingSpinner loadingText="답변을 생성 중입니다. 잠시만 기다려주세요." />
+        <LoadingSpinner
+          loadingText={
+            queryMode === "web_search"
+              ? "웹에서 자료를 수집해 분석하고 있습니다"
+              : "관련 법령을 검색해 답변을 작성하고 있습니다"
+          }
+        />
       ),
       isStreaming: true,
     };
@@ -178,7 +197,15 @@ function Chatbot() {
     setPendingMessageId(loadingAnswerId);
 
     // 훅을 사용하여 API 호출 실행
-    executeQuery(newQuestion.text, queryMode);
+    executeQuery(text, queryMode);
+  };
+
+  const handleSubmit = () => submitQuestion(inputValue);
+
+  const handleReset = () => {
+    setMessages([]);
+    setTypingTextMap({});
+    setIsPdfVisible(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -188,26 +215,13 @@ function Chatbot() {
     }
   };
 
-  // 디바이스 크기 계산 함수
-  function getDeviceType() {
-    const width = window.innerWidth;
-    if (width <= 768) return "mobile";
-    if (width <= 1024) return "tablet";
-    return "desktop";
-  }
-
-  const inputContainerClass =
-    deviceType === "mobile" ? "w-full" : "w-[80%] mx-auto";
-
-  const messageListClass =
-    deviceType === "mobile" ? "p-4" : "w-[80%] mx-auto p-4";
+  const columnClass = "mx-auto w-full max-w-3xl px-4 sm:px-6";
 
   const hasMessages = messages.length > 0;
 
   // 모달 관련 상태 및 핸들러
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
-  const [totalUploadedFiles, setTotalUploadedFiles] = useState<File[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
   const handleOpenModal = () => {
@@ -217,27 +231,30 @@ function Chatbot() {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    refetchCollectionFiles();
     setTimeout(() => {
       setCurrentStep(1);
     }, 300);
   };
 
   const handleUploadSuccess = (newFiles: File[]) => {
-    setTotalUploadedFiles((prevFiles) => [...prevFiles, ...newFiles]);
     setUploadedFiles(newFiles);
     setCurrentStep(2);
   };
 
   const handleTriggerSuccess = () => {
     setCurrentStep(3);
+    refetchCollectionFiles();
   };
 
   // PDF 뷰어 관련 상태 및 핸들러
   const [isPdfVisible, setIsPdfVisible] = useState(false);
   const [pageNum, setPageNum] = useState(1);
-  const [pdfWidth, setPdfWidth] = useState(400);
+  const [pdfWidth, setPdfWidth] = useState(460);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [currentPdfFileName, setCurrentPdfFileName] = useState<string | null>(null);
+  const [currentPdfFileName, setCurrentPdfFileName] = useState<string | null>(
+    null
+  );
 
   const handleClosePdf = () => setIsPdfVisible(false);
 
@@ -250,7 +267,7 @@ function Chatbot() {
     }
 
     try {
-      const response = await fetch(`${BASE_URL}/files/download-pdf`, {
+      const response = await fetch(`${BASE_URL}/files/download-pdf/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ file_name: fileName }),
@@ -273,7 +290,7 @@ function Chatbot() {
     const startWidth = pdfWidth;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = Math.max(200, startWidth + (startX - e.clientX));
+      const newWidth = Math.max(280, startWidth + (startX - e.clientX));
       setPdfWidth(newWidth);
     };
 
@@ -288,66 +305,133 @@ function Chatbot() {
 
   // --- 렌더링 ---
   return (
-    <div className="w-full flex flex-col justify-center items-center h-screen bg-white font-sans relative">
-      {/* Home Button */}
-      <button
-        onClick={() => navigate("/")}
-        className="absolute top-4 left-4 z-10 flex items-center gap-1 px-3 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors text-gray-600 font-medium"
-      >
-        <ChevronLeft size={20} />
-        <span>홈으로</span>
-      </button>
+    <div className="flex h-screen w-full flex-col bg-ink-50 font-sans">
+      {/* 상단 바 */}
+      <header className="z-20 shrink-0 border-b border-ink-200 bg-white/90 backdrop-blur">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+          <button
+            onClick={() => navigate("/")}
+            className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-[13.5px] font-medium text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-800"
+          >
+            <ChevronLeft size={18} />
+            <span className="hidden sm:inline">홈으로</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] font-bold tracking-tight text-ink-900">
+              금융 자문 챗봇
+            </span>
+            <span className="hidden rounded-full border border-ink-200 bg-ink-50 px-2 py-0.5 text-[11.5px] font-medium text-ink-500 sm:inline">
+              전자금융 법령 RAG
+            </span>
+          </div>
+
+          <button
+            onClick={handleReset}
+            disabled={!hasMessages}
+            className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13.5px] font-medium text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-800 disabled:pointer-events-none disabled:opacity-40"
+          >
+            <RotateCcw size={15} />
+            <span className="hidden sm:inline">새 대화</span>
+          </button>
+        </div>
+      </header>
+
+      {isModalOpen && (
+        <Modal
+          currentStep={currentStep}
+          uploadedFiles={uploadedFiles}
+          onClose={handleCloseModal}
+          onUploadSuccess={handleUploadSuccess}
+          onTriggerSuccess={handleTriggerSuccess}
+        />
+      )}
 
       {hasMessages ? (
-        <>
-          <main
-            className={`w-full flex gap-4 ${
-              isPdfVisible ? "flex-row" : "flex-col"
-            } flex-1`}
-          >
-            <div
-              className={`${messageListClass} gap-4 scrollbar-hide flex-1 flex flex-col p-4 space-y-* max-h-[calc(100vh-4rem)] overflow-auto`}
-            >
-              {messages.map((msg) => (
-                <Bubble
+        <div className="flex min-h-0 flex-1 flex-row">
+          {/* 대화 영역 */}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <main className="min-h-0 flex-1 overflow-y-auto py-6">
+              <div className={`${columnClass} flex flex-col gap-6`}>
+                {messages.map((msg) => (
+                  <Bubble
+                    isLoading={isQueryLoading}
+                    onCiteClick={handleCiteClick}
+                    key={msg.id}
+                    isQuestion={msg.type === "question"}
+                    cites={msg.cites || []}
+                    msg={msg}
+                  />
+                ))}
+                <div ref={chatEndRef} />
+              </div>
+            </main>
+
+            <footer className="shrink-0 border-t border-ink-200 bg-white/90 py-3 backdrop-blur">
+              <div className={columnClass}>
+                <ChatForm
+                  inputContainerClass="w-full"
+                  textareaRef={textareaRef}
+                  inputValue={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onClick={handleSubmit}
+                  handleOpenModal={handleOpenModal}
+                  collectionFiles={collectionFiles}
+                  handleFileDelete={handleFileDelete}
+                  hasMessages={hasMessages}
                   isLoading={isQueryLoading}
-                  onCiteClick={handleCiteClick}
-                  key={msg.id}
-                  isQuestion={msg.type === "question"}
-                  cites={msg.cites || []}
-                  msg={msg}
+                  queryMode={queryMode}
+                  setQueryMode={setQueryMode}
                 />
-              ))}
-              <div ref={chatEndRef} />
+              </div>
+            </footer>
+          </div>
+
+          {/* 원문 PDF 뷰어 */}
+          {isPdfVisible && (
+            <>
+              <div
+                className="w-1 shrink-0 cursor-col-resize bg-ink-200 transition-colors hover:bg-brand-400"
+                onMouseDown={handleMouseDown}
+              />
+              <aside
+                style={{ width: pdfWidth }}
+                className="shrink-0 overflow-y-auto border-l border-ink-200 bg-white p-3"
+              >
+                {pdfUrl ? (
+                  <PdfViewer
+                    fileURL={pdfUrl}
+                    initialPage={pageNum}
+                    onPageChange={setPageNum}
+                    onClose={handleClosePdf}
+                  />
+                ) : (
+                  <LoadingSpinner loadingText="PDF를 불러오는 중입니다…" block />
+                )}
+              </aside>
+            </>
+          )}
+        </div>
+      ) : (
+        /* 빈 상태 */
+        <main className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto py-8">
+          <div className={`${columnClass} w-full`}>
+            <div className="mb-8 text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-900 text-white">
+                <Sparkles size={22} />
+              </div>
+              <h1 className="mb-2 text-[28px] font-extrabold tracking-tight text-ink-900">
+                무엇을 확인해 드릴까요?
+              </h1>
+              <p className="text-[14.5px] text-ink-500">
+                전자금융거래법 · 감독규정 · 시행세칙을 벡터 검색해 근거 조항과
+                함께 답변합니다.
+              </p>
             </div>
 
-            {isPdfVisible && (
-              <>
-                <div
-                  className="w-1 bg-gray-300 cursor-col-resize"
-                  onMouseDown={handleMouseDown}
-                />
-                <div
-                  style={{ width: pdfWidth }}
-                  className="scrollbar-hide max-h-[calc(100vh-4rem)] overflow-auto bg-gray-100 p-2"
-                >
-                  {pdfUrl ? (
-                    <PdfViewer
-                      fileURL={pdfUrl}
-                      initialPage={pageNum}
-                      onPageChange={setPageNum}
-                      onClose={handleClosePdf}
-                    />
-                  ) : (
-                    <LoadingSpinner loadingText="PDF를 로딩 중입니다..." />
-                  )}
-                </div>
-              </>
-            )}
-          </main>
-          <footer className="w-full bg-white border-t border-gray-200 p-2 fixed bottom-0 left-0 right-0">
             <ChatForm
-              inputContainerClass={inputContainerClass}
+              inputContainerClass="w-full"
               textareaRef={textareaRef}
               inputValue={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
@@ -357,51 +441,30 @@ function Chatbot() {
               collectionFiles={collectionFiles}
               handleFileDelete={handleFileDelete}
               hasMessages={hasMessages}
-              isLoading={isQueryLoading} // 훅의 로딩 상태를 사용
+              isLoading={isQueryLoading}
               queryMode={queryMode}
               setQueryMode={setQueryMode}
             />
-          </footer>
-        </>
-      ) : (
-        <div
-          className={`${
-            deviceType === "mobile"
-              ? "w-full"
-              : deviceType === "tablet"
-              ? "w-3/4"
-              : "w-[80%]"
-          } flex flex-col justify-center items-center h-full gap-6 p-4`}
-        >
-          <header className="text-center">
-            <h1 className="text-4xl font-bold text-gray-800">금융 자문 챗봇</h1>
-            <p className="text-gray-500 mt-2">FinSight</p>
-          </header>
-          {isModalOpen && (
-            <Modal
-              currentStep={currentStep}
-              uploadedFiles={uploadedFiles}
-              onClose={handleCloseModal}
-              onUploadSuccess={handleUploadSuccess}
-              onTriggerSuccess={handleTriggerSuccess}
-            />
-          )}
-          <ChatForm
-            inputContainerClass={inputContainerClass}
-            textareaRef={textareaRef}
-            inputValue={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onClick={handleSubmit}
-            handleOpenModal={handleOpenModal}
-            collectionFiles={collectionFiles}
-            handleFileDelete={handleFileDelete}
-            hasMessages={hasMessages}
-            isLoading={isQueryLoading} // 훅의 로딩 상태를 사용
-            queryMode={queryMode}
-            setQueryMode={setQueryMode}
-          />
-        </div>
+
+            <div className="mt-6">
+              <p className="mb-2.5 text-[11.5px] font-semibold uppercase tracking-wider text-ink-400">
+                예시 질문
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {SAMPLE_QUESTIONS.map((question) => (
+                  <button
+                    key={question}
+                    type="button"
+                    onClick={() => submitQuestion(question)}
+                    className="rounded-xl border border-ink-200 bg-white px-3.5 py-3 text-left text-[13.5px] leading-snug text-ink-600 shadow-card transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:text-ink-900"
+                  >
+                    {question}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </main>
       )}
     </div>
   );

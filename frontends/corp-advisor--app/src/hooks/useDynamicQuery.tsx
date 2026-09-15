@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 
 // ✅ 수정 포인트 1: 백엔드 기본 주소 설정
 // 개발 환경(Vite)에서는 환경변수(VITE_API_URL)를 우선 사용하고, 없으면 하드코딩된 IP 사용
-const BASE_URL = import.meta.env.VITE_API_URL || "http://34.22.88.153:8000";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 // 드롭다운에서 선택할 값들의 타입을 미리 정의하여 안정성을 높입니다.
 export type QueryMode = "rag" | "advanced_rag" | "web_search";
