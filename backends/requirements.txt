@@ -4,19 +4,26 @@ weaviate-client
 openai
 langchain==0.3.27
 langchain-openai
+langgraph
 pydantic
 python-dotenv
-pymupdf
-beautifulsoup4
-requests
-numpy
-dart_fss
-OpenDartReader
-tabulate
-plotly==6.3.0
-pykrx==1.0.51
-langgraph
 python-multipart
 aiofiles
+httpx
+requests
+beautifulsoup4
+lxml
+pymupdf
+numpy
+pandas
+tqdm
+tabulate
 markdown
-langchain-openai
+plotly==6.3.0
+pykrx==1.0.51
+# KRX 지수 API 응답 변경으로 pykrx 지수 조회가 실패할 때의 대체 소스
+yfinance
+# pykrx가 pkg_resources를 사용하므로 setuptools 81 미만으로 고정
+setuptools<81
+dart_fss
+OpenDartReader

@@ -1,17 +1,19 @@
-html, body, #root {
-  height: 100%;
+html,
+body,
+#root {
   width: 100%;
   margin: 0;
 }
 
-#root {
- display: flex;
- flex-direction: column;
- justify-content: center;
- align-items: center;
+html,
+body {
+  height: 100%;
 }
 
-.prose p {
-  margin-top: 0.25rem;
-  margin-bottom: 0.25rem;
+/* 페이지가 자체적으로 레이아웃을 잡도록 #root는 세로로만 늘린다.
+   (가운데 정렬을 여기서 강제하면 보고서/채팅 화면 레이아웃이 깨진다) */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }

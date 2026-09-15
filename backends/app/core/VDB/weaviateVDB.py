@@ -5,10 +5,10 @@ from weaviate.classes.init import AdditionalConfig, Timeout
 from weaviate.classes.config import Property, DataType
 from weaviate.classes.query import Filter
 
-from .navercloud_embedding import NaverCloudEmbeddings
+from .openrouter_embedding import OpenRouterEmbeddings
 from tqdm import tqdm
 
-# 네이버클라우드 임베딩 모델 (bge-m3) 모델을 활용하여 Weaviate VDB의 CRUD 및 검색을 수행합니다.
+# OpenRouter의 bge-m3 임베딩 모델을 활용하여 Weaviate VDB의 CRUD 및 검색을 수행합니다.
 class VectorDB:
     def __init__(self,
                  url = None, http_port = None, grpc_port = None):
@@ -63,12 +63,14 @@ class VectorDB:
 
         except Exception as e:
             print(f'weaviate 접속에 실패했습니다. 서버 혹은 접속정보를 확인해 주세요. 에러: {e}')
-        self.embedding_model = NaverCloudEmbeddings()
+        self.embedding_model = OpenRouterEmbeddings()
         test = self.embedding_model.embed_query('안녕?')
         if 'err_msg' in test:
-            print('네이버클라우드 임베딩 모델 호출에 실패했습니다. 접속정보를 확인하세요.')
+            print('OpenRouter 임베딩 모델 호출에 실패했습니다. OPENROUTER_KEY / EMBEDDING_MODEL_NAME을 확인하세요.')
             print('err_msg:', test['err_msg'])
-            raise Exception
+            raise RuntimeError(f"임베딩 모델 초기화 실패: {test['err_msg']}")
+        self.embedding_dim = len(test['embedding'])
+        print(f'임베딩 모델 {self.embedding_model.model} 준비 완료 (차원: {self.embedding_dim})')
         
     def check(self, name:str):
         collection = self.client.collections.get(name)
@@ -162,29 +164,39 @@ class VectorDB:
     
             
 # 특정 collection에 vector와 함께 다수의 object를 추가합니다.
-    def add_objects(self, objects:list[dict], file_name:str = None):
+    def add_objects(self, objects:list[dict], file_name:str = None, embed_batch_size:int = 32):
         collection = self.collection
         if file_name:
             print('file_name:', file_name, '|', len(objects), '개의 청크을 적재합니다...')
         else:
             print(len(objects),'개의 청크을 적재합니다...')
-        if getattr(self.collection, 'exists', None):        
+        if getattr(self.collection, 'exists', None):
             if collection.exists():
-                with collection.batch.fixed_size(batch_size=32) as batch:
-                    for object in tqdm(objects, desc = '적재중..'):
-                        # The model provider integration will automatically vectorize the object
-                        vector = self.embedding_model.embed_query(object['text'])['embedding']
-                        batch.add_object(
-                            properties=object,
-                            vector=vector  # Optionally provide a pre-obtained vector
-                        )
+                skipped = 0
+                # 청크를 묶어 한 번의 요청으로 임베딩한다. (건당 호출 대비 수십 배 빠름)
+                with collection.batch.fixed_size(batch_size=embed_batch_size) as batch:
+                    windows = range(0, len(objects), embed_batch_size)
+                    for start in tqdm(windows, desc = '적재중..'):
+                        window = objects[start:start + embed_batch_size]
+                        vectors = self.embedding_model.embed_documents([o['text'] for o in window])
+                        for object, vector in zip(window, vectors):
+                            if not vector:
+                                skipped += 1
+                                continue
+                            batch.add_object(
+                                properties=object,
+                                vector=vector
+                            )
                         if batch.number_errors > 10:
                             print("Batch import stopped due to excessive errors.")
                             break
-                        if batch.number_errors != 0:
-                            print('몇몇 chunk가 적재에 실패하였지만 그 수가 10을 넘지 않아 제외하고 적재되었습니다.')
+                if skipped:
+                    print(f'{skipped}개의 청크는 임베딩 생성에 실패하여 제외되었습니다.')
+                failed = collection.batch.failed_objects
+                if failed:
+                    print(f'{len(failed)}개의 청크가 적재에 실패하였습니다. 예: {failed[0].message}')
             else:
-                print('Legal_DB collection이 weaviate VDB 내에 존재하지 않습니다.')
+                print('LegalDB collection이 weaviate VDB 내에 존재하지 않습니다.')
         else:
             raise ValueError("Collection이 지정되지 않았습니다. set_collection()으로 먼저 설정하세요.")
 
@@ -197,7 +209,7 @@ class VectorDB:
                 # 즉시 삭제 결과를 반영해야 할 경우 아래 옵션을 사용합니다.
                 # consistency_level=wvc.ConsistencyLevel.ALL
             )
-            print(f'{filter.target} : {filter.value}에 해당하는 object를 전부 삭제하였습니다.')
+            print(f'필터에 해당하는 object {getattr(result, "successful", 0)}건을 삭제하였습니다.')
 
         else:
             raise ValueError("Collection이 지정되지 않았습니다. set_collection()으로 먼저 설정하세요.")
@@ -256,14 +268,8 @@ class VectorDB:
         collection의 metadata.name == name 인 object 검색
         """
         if getattr(self.collection, 'exists', None):
-            query = 'dummy'
-            query_fields = fields if fields else ['text']
-            vector = self.embedding_model.embed_query(query)['embedding']
-            result = self.collection.query.hybrid(
-                query = query,
-                vector = vector,
-                alpha = alpha,
-                query_properties = query_fields,
+            # 이름 완전일치 조회이므로 벡터 검색이 필요 없다. (임베딩 API 호출 절감)
+            result = self.collection.query.fetch_objects(
                 limit = 1,
                 filters=Filter.by_property("name").equal(name),
             )

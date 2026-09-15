@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime
 from langgraph.graph import StateGraph, START, END
 from app.core.llm.llm import Midm, SK, LG, Gemini, OpenRouterLLM
-from app.core.web_search_agent.embedding import get_naver_embedding, cosine_similarity
+from app.core.web_search_agent.embedding import get_embedding, get_embeddings, cosine_similarity
 from app.core.web_search_agent.web_search import WebSearchTool
 from app.schemas.langraph_states.state_models import web_agent_state
 from dotenv import load_dotenv
@@ -132,15 +132,13 @@ class web_agent_workflow:
             contents = [doc["content"] for doc in documents]
 
             # 질문의 임베딩 생성
-            question_embedding = await get_naver_embedding(question)
+            question_embedding = await get_embedding(question)
             if not question_embedding:
                 print("[오류] 질문 임베딩 생성 실패. 필터링을 건너뜁니다.")
                 return {"filtered_documents": documents[:top_k], "similarity_score": 0.0}
 
-            # 각 문서의 임베딩 생성
-            doc_embeddings = await asyncio.gather(
-                *[get_naver_embedding(c) for c in contents]
-            )
+            # 각 문서의 임베딩을 한 번의 요청으로 생성
+            doc_embeddings = await get_embeddings(contents)
 
             # 유사도 계산 및 정렬
             doc_sims = [

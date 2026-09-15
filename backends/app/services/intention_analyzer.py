@@ -1,7 +1,5 @@
-from langchain_openai import ChatOpenAI
 from app.core.llm.llm import OpenRouterLLM
 from pydantic import BaseModel, Field
-import os
 
 class UserIntention(BaseModel):
     Next: str = Field(
@@ -10,9 +8,7 @@ class UserIntention(BaseModel):
 
 class IntentionAnalyzer:
     def __init__(self):
-        api_key = os.getenv("OPENROUTER_API_KEY")
-        base_url = os.getenv("BASE_URL")
-        model = os.getenv("MODEL")
+        # 모델/키 설정은 OpenRouterLLM 내부에서 .env를 읽어 처리한다
         self.llm = OpenRouterLLM()
 
     async def analyze(self, question):

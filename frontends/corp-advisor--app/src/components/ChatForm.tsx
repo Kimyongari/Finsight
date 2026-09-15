@@ -1,11 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FooterText } from "./FooterText";
-import { Upload, SendHorizonal } from "lucide-react";
+import { Paperclip, ArrowUp, Trash2, FileText, Plus } from "lucide-react";
 import { RAGDropdown } from "./RAGDropdown";
-import { CollectionFile } from "../hooks/useCollectionFiles";
-import { UploadFile } from "./UploadFile";
+import type { CollectionFile } from "../hooks/useCollectionFiles";
 import { useDeleteFile } from "../hooks/useDeleteFile";
-import { QueryMode } from "../hooks/useDynamicQuery";
+import type { QueryMode } from "../hooks/useDynamicQuery";
 
 type ChatFormProps = {
   inputContainerClass: string;
@@ -34,8 +33,8 @@ export function ChatForm({
   onKeyDown,
   onClick,
   handleOpenModal,
-  loadingPlaceholder = "답변 생성 중입니다.",
-  defaultPlaceholder = "무엇이든 질문해주세요.",
+  loadingPlaceholder = "답변을 생성하고 있습니다…",
+  defaultPlaceholder = "전자금융 법령·감독규정에 대해 무엇이든 질문해주세요.",
   afterSubmitPlaceholder = "추가 질문을 입력하세요.",
   collectionFiles,
   handleFileDelete,
@@ -44,8 +43,21 @@ export function ChatForm({
   queryMode,
   setQueryMode,
 }: ChatFormProps) {
-  const [showUploadText, setShowUploadText] = useState(false);
-  const { deleteFile, isDeleteLoading, isSuccess, error } = useDeleteFile();
+  const [showFilePanel, setShowFilePanel] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const { deleteFile } = useDeleteFile();
+
+  // 패널 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!showFilePanel) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        setShowFilePanel(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showFilePanel]);
 
   const placeholder =
     isLoading && inputValue === ""
@@ -54,84 +66,132 @@ export function ChatForm({
       ? afterSubmitPlaceholder
       : defaultPlaceholder;
 
+  const canSend = !isLoading && inputValue.trim().length > 0;
+
   return (
     <div className={inputContainerClass}>
-      <div className="w-full flex gap-2 mb-2">
-        <div className="flex flex-1 gap-2 border rounded-lg items-center">
-          <RAGDropdown
-            hasMessages={hasMessages}
-            onSelect={(selectedValue) => setQueryMode(selectedValue)}
-          />
-          <textarea
-            rows={1}
-            ref={textareaRef}
-            value={inputValue}
-            onChange={onChange}
-            onKeyDown={onKeyDown}
-            placeholder={placeholder}
-            disabled={isLoading}
-            className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none overflow-y-hidden border-none"
-          />
-          {/* 파일 아이콘 클릭 시 문구 토글 */}
-          <div className="relative">
+      {/* 모드 선택 */}
+      <div className="mb-2.5">
+        <RAGDropdown
+          value={queryMode}
+          onSelect={setQueryMode}
+          disabled={isLoading}
+        />
+      </div>
+
+      {/* 입력창 */}
+      <div className="rounded-2xl border border-ink-200 bg-white p-2 shadow-card transition-colors focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-100">
+        <textarea
+          rows={1}
+          ref={textareaRef}
+          value={inputValue}
+          onChange={onChange}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          disabled={isLoading}
+          className="max-h-40 w-full resize-none border-none bg-transparent px-3 py-2 text-[15px] leading-relaxed text-ink-800 placeholder:text-ink-400 focus:outline-none disabled:text-ink-400"
+        />
+
+        <div className="flex items-center justify-between gap-2 px-1 pb-0.5 pt-1">
+          {/* 지식베이스 파일 */}
+          <div className="relative" ref={panelRef}>
             <button
               type="button"
-              onClick={() => setShowUploadText((prev) => !prev)}
-              className="p-3 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none overflow-y-hidden border-none"
+              onClick={() => setShowFilePanel((prev) => !prev)}
+              className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-medium text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-700"
             >
-              <Upload />
+              <Paperclip size={15} />
+              지식베이스
+              <span className="rounded-full bg-ink-100 px-1.5 py-0.5 text-[11px] font-bold text-ink-500">
+                {collectionFiles?.length ?? 0}
+              </span>
             </button>
 
-            {showUploadText && (
+            {showFilePanel && (
               <div
-                className={`${
+                className={`absolute left-0 z-20 w-[22rem] rounded-xl border border-ink-200 bg-white p-2 shadow-lift ${
                   hasMessages ? "bottom-full mb-2" : "top-full mt-2"
-                } right-0 w-64 text-center absolute bg-white border border-gray-300 rounded shadow-md p-2`}
+                }`}
               >
-                <div className="mb-2 py-2 border-b">
+                <p className="px-2 py-1.5 text-[11.5px] font-semibold uppercase tracking-wider text-ink-400">
+                  적재된 문서
+                </p>
+                <ul className="mb-1 max-h-56 overflow-y-auto">
                   {collectionFiles && collectionFiles.length > 0 ? (
-                    collectionFiles.map((file, index) => (
-                      <UploadFile
-                        index={index}
-                        fileName={file.file_name}
-                        onDelete={() => {
-                          deleteFile(file.file_name);
-                          handleFileDelete(file.file_name);
-                        }}
-                      />
+                    collectionFiles.map((file) => (
+                      <li
+                        key={file.file_name}
+                        className="group flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-ink-50"
+                      >
+                        <FileText
+                          size={14}
+                          className="shrink-0 text-ink-400"
+                        />
+                        <span
+                          className="flex-1 truncate text-[13px] text-ink-700"
+                          title={file.file_name}
+                        >
+                          {file.file_name}
+                        </span>
+                        {typeof file.chunk_count === "number" && (
+                          <span className="shrink-0 text-[11px] text-ink-400">
+                            {file.chunk_count} chunks
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          aria-label={`${file.file_name} 삭제`}
+                          onClick={() => {
+                            deleteFile(file.file_name);
+                            handleFileDelete(file.file_name);
+                          }}
+                          className="shrink-0 rounded p-1 text-ink-300 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </li>
                     ))
                   ) : (
-                    <p className="text-gray-600">업로드된 파일이 없습니다.</p>
+                    <li className="px-2 py-3 text-[13px] text-ink-400">
+                      업로드된 파일이 없습니다.
+                    </li>
                   )}
-                </div>
-                <div
-                  className="cursor-pointer"
+                </ul>
+                <button
+                  type="button"
                   onClick={() => {
                     handleOpenModal();
-                    setShowUploadText(false);
+                    setShowFilePanel(false);
                   }}
+                  className="flex w-full items-center gap-1.5 rounded-lg border-t border-ink-100 px-2 pb-1 pt-2.5 text-[13px] font-semibold text-brand-600 hover:text-brand-700"
                 >
-                  다른 데이터 업로드 하기
-                </div>
+                  <Plus size={14} />
+                  PDF 추가 업로드
+                </button>
               </div>
             )}
           </div>
+
+          {/* 전송 */}
+          <button
+            type="button"
+            onClick={onClick}
+            disabled={!canSend}
+            aria-label="질문 전송"
+            className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-150 ${
+              canSend
+                ? "bg-brand-600 text-white hover:bg-brand-700 active:scale-95"
+                : "cursor-not-allowed bg-ink-200 text-ink-400"
+            }`}
+          >
+            <ArrowUp size={18} strokeWidth={2.4} />
+          </button>
         </div>
-        {/* 전송 버튼 */}
-        <button
-          type="button"
-          onClick={onClick}
-          disabled={isLoading}
-          className={`px-5 py-3 text-white font-bold rounded-lg self-end ${
-            isLoading
-              ? "bg-gray-700 cursor-not-allowed"
-              : "bg-indigo-500 hover:bg-indigo-600 transform transition-transform duration-200 hover:scale-105 active:scale-95"
-          }`}
-        >
-          <SendHorizonal />
-        </button>
       </div>
-      <FooterText footerText="FinSight의 답변은 부정확할 수 있습니다. 중요한 정보는 다시 확인해주세요." />
+
+      <div className="mt-2">
+        <FooterText footerText="FinSight의 답변은 부정확할 수 있습니다. 중요한 정보는 원문 법령을 다시 확인해주세요." />
+      </div>
     </div>
   );
 }
